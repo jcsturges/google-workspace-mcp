@@ -94,7 +94,7 @@ source .venv/bin/activate
 python3 -m google_workspace_mcp
 ```
 
-A browser window will open for Google OAuth consent. After granting access, the token is saved to `~/.config/gw-mcp/token.pickle` and the server starts. Press Ctrl-C — Claude Code will manage the server process from here.
+A browser window will open for Google OAuth consent. After granting access, the token is saved to `~/.config/gw-mcp/token.pickle`. The server will then enter its stdio loop — this looks like a hang, but is normal. Press Ctrl-C to exit. Claude Code will manage the server process from here on.
 
 To reset authentication at any time:
 ```bash

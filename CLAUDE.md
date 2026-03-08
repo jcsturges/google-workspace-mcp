@@ -54,6 +54,10 @@ export GW_MCP_CONFIG_DIR=~/.config/gw-mcp  # Config/token directory
 export GW_MCP_LOG_LEVEL=INFO               # DEBUG, INFO, WARNING, ERROR
 ```
 
+## Working in this repo
+
+When making changes that affect user-facing behaviour, installation steps, configuration, or architecture, update `README.md` accordingly before considering the task complete.
+
 ## Architecture
 
 ### Entry point and tool registration
