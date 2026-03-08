@@ -2,6 +2,8 @@
 
 **A Model Context Protocol server for seamless integration between Claude Code and Google Workspace services.**
 
+Originally cloned from [crazybass81/google-workspace-mcp](https://github.com/crazybass81/google-workspace-mcp.git).
+
 ## Features
 
 ### ✅ Complete Google Workspace Integration
@@ -32,88 +34,108 @@
 
 ### Prerequisites
 - Python 3.10 or higher
-- Google Cloud Project with Workspace APIs enabled
-- OAuth 2.0 credentials
+- Google Cloud Project with the required APIs enabled
+- OAuth 2.0 credentials (Desktop app type) from Google Cloud Console
 
-### Step 1: Clone and Setup
+### Step 1: Clone and install
 
 ```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/google-workspace-mcp.git
+git clone git@github.com:jcsturges/google-workspace-mcp.git
 cd google-workspace-mcp
 
-# Create virtual environment
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 
-# Install dependencies
 pip install -r requirements.txt
 pip install -e .
-
-# Create config directory
-mkdir -p config
 ```
 
-### Step 2: Google Cloud Console Setup
+### Step 2: Google Cloud Console setup
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing one
-3. Enable the following APIs:
-   - Google Drive API
-   - Google Docs API
-   - Google Sheets API
-   - Google Slides API
-   - Google Forms API
-   - Gmail API
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) and create or select a project.
+2. Enable only the APIs for the services you intend to use under **APIs & Services > Library**:
 
-4. Configure OAuth Consent Screen:
-   - Go to "APIs & Services" > "OAuth consent screen"
-   - Choose "External" user type
-   - Fill in required fields (App name, User support email, Developer contact)
-   - Add scopes:
-     - `https://www.googleapis.com/auth/drive`
-     - `https://www.googleapis.com/auth/documents`
-     - `https://www.googleapis.com/auth/spreadsheets`
-     - `https://www.googleapis.com/auth/presentations`
-     - `https://www.googleapis.com/auth/forms`
-     - `https://www.googleapis.com/auth/gmail.modify`
+   | Service | Google Cloud API to enable |
+   |---|---|
+   | Google Drive | Google Drive API |
+   | Google Docs | Google Docs API |
+   | Google Sheets | Google Sheets API |
+   | Google Slides | Google Slides API |
+   | Google Forms | Google Forms API |
+   | Gmail | Gmail API |
 
-5. Create OAuth 2.0 Client ID:
-   - Go to "Credentials" > "Create Credentials" > "OAuth client ID"
-   - Choose "Desktop app" as application type
-   - Download credentials JSON file
-   - Copy `config/credentials.json.example` to `config/credentials.json`
-   - Replace the example values with your downloaded credentials
+3. Configure the **OAuth consent screen** (External type). Under **Scopes**, add only the scopes that correspond to the APIs you enabled above:
 
-### Step 3: Initial Authentication
+   | Scope | Access granted |
+   |---|---|
+   | `https://www.googleapis.com/auth/drive.file` | Drive files created by this app only |
+   | `https://www.googleapis.com/auth/drive` | All Drive files (broader — use `drive.file` if possible) |
+   | `https://www.googleapis.com/auth/documents` | All Google Docs |
+   | `https://www.googleapis.com/auth/spreadsheets` | All Google Sheets |
+   | `https://www.googleapis.com/auth/presentations` | All Google Slides |
+   | `https://www.googleapis.com/auth/forms` | All Google Forms |
+   | `https://www.googleapis.com/auth/gmail.modify` | Read and send Gmail (not account recovery) |
+
+4. Create an **OAuth 2.0 Client ID** (Desktop app type) and download the credentials JSON.
+5. Place the downloaded file at `~/.config/gw-mcp/credentials.json`:
+   ```bash
+   mkdir -p ~/.config/gw-mcp
+   cp ~/Downloads/client_secret_*.json ~/.config/gw-mcp/credentials.json
+   ```
+
+> **Configuring scopes:** The `SCOPES` list in `google_workspace_mcp/auth/oauth_handler.py` controls exactly which permissions are requested at OAuth consent time. Edit that list before authenticating to match the APIs you enabled above — the two must stay in sync. Enabling fewer scopes (and fewer Google Cloud APIs) reduces the access you grant to the server.
+
+### Step 3: First-time authentication
+
+Run the server once interactively to complete the OAuth flow:
 
 ```bash
-# Run server for first-time authentication
+source venv/bin/activate
 python3 -m google_workspace_mcp
-
-# Browser will open for OAuth consent
-# Grant necessary permissions
-# Token will be saved automatically
 ```
 
-### Step 4: Claude Code Integration
+A browser window will open for Google OAuth consent. After granting access, the token is saved to `~/.config/gw-mcp/token.pickle` and the server starts. Press Ctrl-C — Claude Code will manage the server process from here.
 
-Add to your Claude Code MCP settings (`~/.claude/config/settings.json`):
+To reset authentication at any time:
+```bash
+rm ~/.config/gw-mcp/token.pickle
+```
+
+### Step 4: Add to Claude Code
+
+**Option A — Global (available in all projects):**
+
+Edit `~/.claude/settings.json` and add under `mcpServers`:
 
 ```json
 {
   "mcpServers": {
     "google-workspace": {
-      "command": "/usr/local/bin/python3",
+      "command": "/absolute/path/to/google-workspace-mcp/venv/bin/python3",
       "args": ["-m", "google_workspace_mcp"],
-      "cwd": "/path/to/your/google-workspace-mcp",
-      "env": {}
+      "cwd": "/absolute/path/to/google-workspace-mcp"
     }
   }
 }
 ```
 
-**Note**: Replace `/path/to/your/google-workspace-mcp` with your actual installation path.
+**Option B — Project-local (already included):**
+
+A `.mcp.json` file is included in this repository root. Update `cwd` and `command` to match your installation path:
+
+```json
+{
+  "mcpServers": {
+    "google-workspace": {
+      "command": "/absolute/path/to/google-workspace-mcp/venv/bin/python3",
+      "args": ["-m", "google_workspace_mcp"],
+      "cwd": "/absolute/path/to/google-workspace-mcp"
+    }
+  }
+}
+```
+
+Use the venv's Python binary (not the system `python3`) so the installed dependencies are available. Run `which python3` while the venv is active to get the correct path.
 
 ## Available Tools
 
@@ -290,6 +312,13 @@ Google Workspace APIs
 - **No Credential Logging**: Sensitive data never logged
 - **Automatic Token Refresh**: Expired tokens refreshed automatically
 - **Rate Limiting**: Prevents quota exhaustion and API abuse
+
+## Known Technical Debt
+
+Two files are dead code left over from a prior refactor and are never executed. They can be safely deleted:
+
+- **`server.py`** — an older MCP server implementation superseded by `server_fastmcp.py`. Imports symbols (`ALL_TOOLS`, `handle_*_tool`) that no longer exist in the tools package and would fail immediately if run. `__main__.py` uses `server_fastmcp.py` exclusively.
+- **`search_recent.py`** — a standalone script that imports `from google_workspace_mcp.drive_client import DriveClient`, a class that does not exist in the codebase. Would fail with an `ImportError` on startup.
 
 ## Contributing
 

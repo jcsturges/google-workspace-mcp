@@ -17,12 +17,16 @@ logger = setup_logger(__name__)
 
 # Google Workspace API scopes
 SCOPES = [
-    'https://www.googleapis.com/auth/drive',
+    # Full read/write access to drive
+    # 'https://www.googleapis.com/auth/drive',
+    # Limit to just files this project creates
+    'https://www.googleapis.com/auth/drive.file',
     'https://www.googleapis.com/auth/documents',
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/presentations',
-    'https://www.googleapis.com/auth/forms',
-    'https://www.googleapis.com/auth/gmail.modify'
+    # Commenting these out this for now...
+    # 'https://www.googleapis.com/auth/forms',
+    # 'https://www.googleapis.com/auth/gmail.modify'
 ]
 
 # Default config directory
