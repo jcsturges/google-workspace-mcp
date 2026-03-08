@@ -1,6 +1,5 @@
 """Common Pydantic models for Google Workspace MCP tools."""
 
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .response_formatter import ResponseFormat

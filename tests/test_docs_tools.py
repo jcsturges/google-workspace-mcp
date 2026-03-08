@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
 from google_workspace_mcp.tools.docs_tools import (
     DocsCreateInput,
     DocsDeleteInput,
@@ -53,9 +54,7 @@ class TestDocsTools:
             }
         )
 
-        result = await docs_read(
-            DocsReadInput(file_id="doc1", document_id="doc1")
-        )
+        result = await docs_read(DocsReadInput(file_id="doc1", document_id="doc1"))
 
         assert isinstance(result, str)
         mock_service.read_document.assert_called_once()
@@ -77,9 +76,7 @@ class TestDocsTools:
         """Test docs_delete tool."""
         mock_service.delete_document = AsyncMock(return_value=None)
 
-        result = await docs_delete(
-            DocsDeleteInput(file_id="doc1", document_id="doc1")
-        )
+        result = await docs_delete(DocsDeleteInput(file_id="doc1", document_id="doc1"))
 
         assert isinstance(result, str)
         mock_service.delete_document.assert_called_once_with(document_id="doc1")

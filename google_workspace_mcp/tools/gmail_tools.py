@@ -61,9 +61,7 @@ class GmailSendInput(BaseMCPInput):
         description="Email body content (plain text or HTML)",
         max_length=1000000,  # 1MB limit
     )
-    cc: str | None = Field(
-        default=None, description="CC email address (optional)", max_length=320
-    )
+    cc: str | None = Field(default=None, description="CC email address (optional)", max_length=320)
     bcc: str | None = Field(
         default=None, description="BCC email address (optional)", max_length=320
     )
@@ -456,8 +454,8 @@ async def gmail_list_labels(params: GmailListLabelsInput) -> str:
         response = f"# Gmail Labels ({len(labels)} total)\n\n"
 
         # Separate system and user labels
-        system_labels = [l for l in labels if l["id"].isupper() or l["id"].startswith("Label_")]
-        user_labels = [l for l in labels if l not in system_labels]
+        system_labels = [lb for lb in labels if lb["id"].isupper() or lb["id"].startswith("Label_")]
+        user_labels = [lb for lb in labels if lb not in system_labels]
 
         if system_labels:
             response += "## System Labels\n\n"
@@ -530,7 +528,7 @@ async def gmail_modify_labels(params: GmailModifyLabelsInput) -> str:
                 "validating input",
             )
 
-        result = await gmail_service.modify_labels(
+        await gmail_service.modify_labels(
             message_id=params.message_id,
             add_labels=params.add_labels,
             remove_labels=params.remove_labels,

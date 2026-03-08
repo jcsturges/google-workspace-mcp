@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
 from google_workspace_mcp.tools.gmail_tools import (
     GmailListLabelsInput,
     GmailModifyLabelsInput,
@@ -94,9 +95,7 @@ class TestGmailTools:
     @patch("google_workspace_mcp.tools.gmail_tools.gmail_service")
     async def test_send_message(self, mock_service):
         """Test gmail_send_message tool."""
-        mock_service.send_message = AsyncMock(
-            return_value={"id": "sent1", "threadId": "thread1"}
-        )
+        mock_service.send_message = AsyncMock(return_value={"id": "sent1", "threadId": "thread1"})
 
         result = await gmail_send_message(
             GmailSendInput(
@@ -112,9 +111,7 @@ class TestGmailTools:
     @patch("google_workspace_mcp.tools.gmail_tools.gmail_service")
     async def test_reply_message(self, mock_service):
         """Test gmail_reply_message tool."""
-        mock_service.reply_message = AsyncMock(
-            return_value={"id": "reply1", "threadId": "thread1"}
-        )
+        mock_service.reply_message = AsyncMock(return_value={"id": "reply1", "threadId": "thread1"})
 
         result = await gmail_reply_message(
             GmailReplyInput(message_id="msg1", body="Thanks for your email")

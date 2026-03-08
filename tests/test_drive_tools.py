@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
 from google_workspace_mcp.tools.drive_tools import (
     DriveCreateFileInput,
     DriveDeleteFileInput,
@@ -89,9 +90,7 @@ class TestDriveTools:
     @patch("google_workspace_mcp.tools.drive_tools.drive_service")
     async def test_update_file(self, mock_service):
         """Test drive_update_file tool."""
-        mock_service.update_file = AsyncMock(
-            return_value={"id": "file1", "name": "updated.txt"}
-        )
+        mock_service.update_file = AsyncMock(return_value={"id": "file1", "name": "updated.txt"})
 
         result = await drive_update_file(
             DriveUpdateFileInput(file_id="file1", content="new content")

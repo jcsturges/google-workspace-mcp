@@ -3,9 +3,10 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
 from google_workspace_mcp.tools.slides_tools import (
-    SlidesBatchUpdateInput,
     SlidesAddSlideInput,
+    SlidesBatchUpdateInput,
     SlidesCreateInput,
     SlidesDeleteSlideInput,
     SlidesReadInput,

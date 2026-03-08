@@ -1,6 +1,7 @@
 """Integration tests - utility modules and service instantiation."""
 
 import pytest
+
 from google_workspace_mcp.utils.cache import AsyncCache
 from google_workspace_mcp.utils.error_handler import (
     GoogleWorkspaceError,

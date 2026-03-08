@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 import pytest
+
 from google_workspace_mcp.services.slides_service import SlidesService
 
 

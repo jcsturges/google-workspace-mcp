@@ -130,9 +130,7 @@ def cache_key(*args, **kwargs) -> str:
     return ":".join(parts)
 
 
-async def cached_call(
-    service: str, key: str, func, *args, ttl: int | None = None, **kwargs
-) -> Any:
+async def cached_call(service: str, key: str, func, *args, ttl: int | None = None, **kwargs) -> Any:
     """Execute function with caching.
 
     Args:

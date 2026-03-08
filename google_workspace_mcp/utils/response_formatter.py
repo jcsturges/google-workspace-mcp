@@ -2,14 +2,14 @@
 
 import json
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 # Character limit for responses (MCP best practice)
 CHARACTER_LIMIT = 25000
 
 
-class ResponseFormat(str, Enum):
+class ResponseFormat(StrEnum):
     """Output format options for tool responses."""
 
     MARKDOWN = "markdown"
