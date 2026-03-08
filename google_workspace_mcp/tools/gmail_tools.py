@@ -1,18 +1,18 @@
 """MCP tools for Gmail operations using FastMCP."""
 
 import json
-from typing import Optional, List
-from pydantic import Field, field_validator, EmailStr
+
+from pydantic import Field, field_validator
 
 from ..server_fastmcp import mcp
 from ..services.gmail_service import GmailService
+from ..utils.base_models import BaseListInput, BaseMCPInput, MessageIdInput
 from ..utils.logger import setup_logger
-from ..utils.base_models import BaseMCPInput, MessageIdInput, BaseListInput
 from ..utils.response_formatter import (
+    CHARACTER_LIMIT,
     ResponseFormat,
-    format_error,
     create_success_response,
-    CHARACTER_LIMIT
+    format_error,
 )
 
 logger = setup_logger(__name__)
@@ -23,17 +23,17 @@ gmail_service = GmailService()
 # Pydantic Input Models
 # ============================================================================
 
+
 class GmailSearchInput(BaseListInput):
     """Input model for searching Gmail messages."""
 
     query: str = Field(
         default="",
         description="Gmail search query using Gmail syntax (e.g., 'from:user@example.com subject:report is:unread', 'after:2025/10/01')",
-        max_length=500
+        max_length=500,
     )
-    label_ids: Optional[List[str]] = Field(
-        default=None,
-        description="Filter by label IDs (e.g., ['INBOX', 'UNREAD', 'IMPORTANT'])"
+    label_ids: list[str] | None = Field(
+        default=None, description="Filter by label IDs (e.g., ['INBOX', 'UNREAD', 'IMPORTANT'])"
     )
 
 
@@ -42,7 +42,7 @@ class GmailReadInput(MessageIdInput):
 
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -53,38 +53,30 @@ class GmailSendInput(BaseMCPInput):
         ...,
         description="Recipient email address (e.g., 'user@example.com')",
         min_length=3,
-        max_length=320  # RFC 5321 email length limit
+        max_length=320,  # RFC 5321 email length limit
     )
-    subject: str = Field(
-        ...,
-        description="Email subject line",
-        max_length=500
-    )
+    subject: str = Field(..., description="Email subject line", max_length=500)
     body: str = Field(
         ...,
         description="Email body content (plain text or HTML)",
-        max_length=1000000  # 1MB limit
+        max_length=1000000,  # 1MB limit
     )
-    cc: Optional[str] = Field(
-        default=None,
-        description="CC email address (optional)",
-        max_length=320
+    cc: str | None = Field(
+        default=None, description="CC email address (optional)", max_length=320
     )
-    bcc: Optional[str] = Field(
-        default=None,
-        description="BCC email address (optional)",
-        max_length=320
+    bcc: str | None = Field(
+        default=None, description="BCC email address (optional)", max_length=320
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
-    @field_validator('to', 'cc', 'bcc')
+    @field_validator("to", "cc", "bcc")
     @classmethod
-    def validate_email(cls, v: Optional[str]) -> Optional[str]:
+    def validate_email(cls, v: str | None) -> str | None:
         """Basic email format validation."""
-        if v and '@' not in v:
+        if v and "@" not in v:
             raise ValueError("Invalid email format - must contain '@'")
         return v
 
@@ -92,14 +84,10 @@ class GmailSendInput(BaseMCPInput):
 class GmailReplyInput(MessageIdInput):
     """Input model for replying to a Gmail message."""
 
-    body: str = Field(
-        ...,
-        description="Reply body content",
-        max_length=1000000
-    )
+    body: str = Field(..., description="Reply body content", max_length=1000000)
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -108,29 +96,27 @@ class GmailListLabelsInput(BaseMCPInput):
 
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
 class GmailModifyLabelsInput(MessageIdInput):
     """Input model for modifying message labels."""
 
-    add_labels: Optional[List[str]] = Field(
-        default=None,
-        description="Label IDs to add (e.g., ['STARRED', 'IMPORTANT'])"
+    add_labels: list[str] | None = Field(
+        default=None, description="Label IDs to add (e.g., ['STARRED', 'IMPORTANT'])"
     )
-    remove_labels: Optional[List[str]] = Field(
-        default=None,
-        description="Label IDs to remove (e.g., ['UNREAD', 'SPAM'])"
+    remove_labels: list[str] | None = Field(
+        default=None, description="Label IDs to remove (e.g., ['UNREAD', 'SPAM'])"
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
-    @field_validator('add_labels', 'remove_labels')
+    @field_validator("add_labels", "remove_labels")
     @classmethod
-    def validate_labels_not_empty(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+    def validate_labels_not_empty(cls, v: list[str] | None) -> list[str] | None:
         """Ensure at least one label operation is specified."""
         return v
 
@@ -139,14 +125,15 @@ class GmailModifyLabelsInput(MessageIdInput):
 # Tool Implementations
 # ============================================================================
 
+
 @mcp.tool(
     name="gmail_search_messages",
     annotations={
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def gmail_search_messages(params: GmailSearchInput) -> str:
     """Search for messages in Gmail using Gmail search syntax.
@@ -188,10 +175,7 @@ async def gmail_search_messages(params: GmailSearchInput) -> str:
     """
     try:
         # Call Gmail service
-        kwargs = {
-            "query": params.query,
-            "max_results": params.limit
-        }
+        kwargs = {"query": params.query, "max_results": params.limit}
         if params.label_ids:
             kwargs["label_ids"] = params.label_ids
 
@@ -202,26 +186,26 @@ async def gmail_search_messages(params: GmailSearchInput) -> str:
 
         # Apply pagination
         total_count = len(results)
-        paginated_results = results[params.offset:params.offset + params.limit]
+        paginated_results = results[params.offset : params.offset + params.limit]
         has_more = (params.offset + params.limit) < total_count
 
         if params.response_format == ResponseFormat.JSON:
             response = {
                 "messages": paginated_results[:20],  # Limit for readability
                 "total_count": total_count,
-                "showing": len(paginated_results)
+                "showing": len(paginated_results),
             }
             return json.dumps(response, indent=2)
 
         # Markdown format
-        response = f"# Gmail Search Results\n\n"
+        response = "# Gmail Search Results\n\n"
         response += f"**Query**: `{params.query or 'all messages'}`\n"
         response += f"**Found**: {total_count} messages\n"
         response += f"**Showing**: {len(paginated_results)}\n\n"
 
         # Show first 20 messages
         for idx, msg in enumerate(paginated_results[:20], 1):
-            headers = {h['name']: h['value'] for h in msg['payload'].get('headers', [])}
+            headers = {h["name"]: h["value"] for h in msg["payload"].get("headers", [])}
             response += f"## {idx}. {headers.get('Subject', '(No subject)')}\n"
             response += f"- **From**: {headers.get('From', 'Unknown')}\n"
             response += f"- **Date**: {headers.get('Date', 'Unknown')}\n"
@@ -247,8 +231,8 @@ async def gmail_search_messages(params: GmailSearchInput) -> str:
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def gmail_read_message(params: GmailReadInput) -> str:
     """Read full content of a Gmail message.
@@ -284,13 +268,13 @@ async def gmail_read_message(params: GmailReadInput) -> str:
             return json.dumps(result, indent=2)
 
         # Markdown format
-        headers = result.get('headers', {})
+        headers = result.get("headers", {})
         response = f"# Email: {headers.get('Subject', '(No subject)')}\n\n"
         response += f"**Message ID**: `{result['message_id']}`\n"
         response += f"**Thread ID**: `{result['thread_id']}`\n"
         response += f"**From**: {headers.get('From', 'Unknown')}\n"
         response += f"**To**: {headers.get('To', 'Unknown')}\n"
-        if headers.get('Cc'):
+        if headers.get("Cc"):
             response += f"**Cc**: {headers['Cc']}\n"
         response += f"**Date**: {headers.get('Date', 'Unknown')}\n"
         response += f"**Labels**: {', '.join(result.get('labels', []))}\n\n"
@@ -299,8 +283,10 @@ async def gmail_read_message(params: GmailReadInput) -> str:
 
         # Check character limit
         if len(response) > CHARACTER_LIMIT:
-            truncated = response[:CHARACTER_LIMIT - 200]
-            truncated += "\n\n⚠️ **Content Truncated**: Email content exceeds character limit (25,000 chars)."
+            truncated = response[: CHARACTER_LIMIT - 200]
+            truncated += (
+                "\n\n⚠️ **Content Truncated**: Email content exceeds character limit (25,000 chars)."
+            )
             return truncated
 
         return response
@@ -316,8 +302,8 @@ async def gmail_read_message(params: GmailReadInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def gmail_send_message(params: GmailSendInput) -> str:
     """Send a new email message via Gmail.
@@ -354,23 +340,19 @@ async def gmail_send_message(params: GmailSendInput) -> str:
     """
     try:
         result = await gmail_service.send_message(
-            to=params.to,
-            subject=params.subject,
-            body=params.body,
-            cc=params.cc,
-            bcc=params.bcc
+            to=params.to, subject=params.subject, body=params.body, cc=params.cc, bcc=params.bcc
         )
 
         return create_success_response(
             f"Sent email to {params.to}",
             data={
-                "message_id": result.get('id'),
+                "message_id": result.get("id"),
                 "to": params.to,
                 "subject": params.subject,
                 "cc": params.cc,
-                "bcc": params.bcc
+                "bcc": params.bcc,
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -384,8 +366,8 @@ async def gmail_send_message(params: GmailSendInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def gmail_reply_message(params: GmailReplyInput) -> str:
     """Reply to an existing Gmail message.
@@ -416,18 +398,12 @@ async def gmail_reply_message(params: GmailReplyInput) -> str:
         - Subject is automatically prefixed with "Re:"
     """
     try:
-        result = await gmail_service.reply_message(
-            message_id=params.message_id,
-            body=params.body
-        )
+        result = await gmail_service.reply_message(message_id=params.message_id, body=params.body)
 
         return create_success_response(
             f"Sent reply to message {params.message_id}",
-            data={
-                "original_message_id": params.message_id,
-                "reply_message_id": result.get('id')
-            },
-            response_format=params.response_format
+            data={"original_message_id": params.message_id, "reply_message_id": result.get("id")},
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -441,8 +417,8 @@ async def gmail_reply_message(params: GmailReplyInput) -> str:
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def gmail_list_labels(params: GmailListLabelsInput) -> str:
     """List all Gmail labels for the authenticated user.
@@ -480,7 +456,7 @@ async def gmail_list_labels(params: GmailListLabelsInput) -> str:
         response = f"# Gmail Labels ({len(labels)} total)\n\n"
 
         # Separate system and user labels
-        system_labels = [l for l in labels if l['id'].isupper() or l['id'].startswith('Label_')]
+        system_labels = [l for l in labels if l["id"].isupper() or l["id"].startswith("Label_")]
         user_labels = [l for l in labels if l not in system_labels]
 
         if system_labels:
@@ -506,8 +482,8 @@ async def gmail_list_labels(params: GmailListLabelsInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def gmail_modify_labels(params: GmailModifyLabelsInput) -> str:
     """Add or remove labels from a Gmail message.
@@ -551,13 +527,13 @@ async def gmail_modify_labels(params: GmailModifyLabelsInput) -> str:
         if not params.add_labels and not params.remove_labels:
             return format_error(
                 ValueError("Must specify at least one of add_labels or remove_labels"),
-                "validating input"
+                "validating input",
             )
 
         result = await gmail_service.modify_labels(
             message_id=params.message_id,
             add_labels=params.add_labels,
-            remove_labels=params.remove_labels
+            remove_labels=params.remove_labels,
         )
 
         changes = []
@@ -568,11 +544,8 @@ async def gmail_modify_labels(params: GmailModifyLabelsInput) -> str:
 
         return create_success_response(
             f"Modified labels for message {params.message_id}",
-            data={
-                "message_id": params.message_id,
-                "changes": " | ".join(changes)
-            },
-            response_format=params.response_format
+            data={"message_id": params.message_id, "changes": " | ".join(changes)},
+            response_format=params.response_format,
         )
 
     except Exception as e:

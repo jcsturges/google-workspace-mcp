@@ -1,18 +1,18 @@
 """MCP tools for Google Docs operations using FastMCP."""
 
 import json
-from typing import Optional
+
 from pydantic import Field
 
 from ..server_fastmcp import mcp
 from ..services.docs_service import DocsService
-from ..utils.logger import setup_logger
 from ..utils.base_models import BaseMCPInput, DocumentIdInput
+from ..utils.logger import setup_logger
 from ..utils.response_formatter import (
+    CHARACTER_LIMIT,
     ResponseFormat,
-    format_error,
     create_success_response,
-    CHARACTER_LIMIT
+    format_error,
 )
 
 logger = setup_logger(__name__)
@@ -23,6 +23,7 @@ docs_service = DocsService()
 # Pydantic Input Models
 # ============================================================================
 
+
 class DocsCreateInput(BaseMCPInput):
     """Input model for creating a Google Docs document."""
 
@@ -30,11 +31,11 @@ class DocsCreateInput(BaseMCPInput):
         ...,
         description="Document title (e.g., 'Meeting Notes', 'Project Plan', 'Q1 Report')",
         min_length=1,
-        max_length=255
+        max_length=255,
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -43,7 +44,7 @@ class DocsReadInput(DocumentIdInput):
 
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -53,16 +54,16 @@ class DocsUpdateInput(DocumentIdInput):
     text: str = Field(
         ...,
         description="Text content to insert into the document",
-        max_length=1000000  # 1MB limit
+        max_length=1000000,  # 1MB limit
     )
     index: int = Field(
         default=1,
         description="Position to insert text (1 = start of document, higher values = later positions)",
-        ge=1
+        ge=1,
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -71,7 +72,7 @@ class DocsDeleteInput(DocumentIdInput):
 
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -79,14 +80,15 @@ class DocsDeleteInput(DocumentIdInput):
 # Tool Implementations
 # ============================================================================
 
+
 @mcp.tool(
     name="docs_create",
     annotations={
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def docs_create(params: DocsCreateInput) -> str:
     """Create a new Google Docs document.
@@ -116,15 +118,15 @@ async def docs_create(params: DocsCreateInput) -> str:
     try:
         result = await docs_service.create_document(title=params.title)
 
-        document_id = result.get('documentId')
+        document_id = result.get("documentId")
         return create_success_response(
             f"Created document '{result.get('title')}'",
             data={
                 "document_id": document_id,
-                "title": result.get('title'),
-                "url": f"https://docs.google.com/document/d/{document_id}"
+                "title": result.get("title"),
+                "url": f"https://docs.google.com/document/d/{document_id}",
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -138,8 +140,8 @@ async def docs_create(params: DocsCreateInput) -> str:
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def docs_read(params: DocsReadInput) -> str:
     """Read content from a Google Docs document.
@@ -182,7 +184,7 @@ async def docs_read(params: DocsReadInput) -> str:
 
         # Check character limit
         if len(response) > CHARACTER_LIMIT:
-            truncated = response[:CHARACTER_LIMIT - 200]
+            truncated = response[: CHARACTER_LIMIT - 200]
             truncated += "\n\n⚠️ **Content Truncated**: Document content exceeds character limit (25,000 chars)."
             truncated += "\n\n**Tip**: Consider breaking the document into smaller sections or use pagination."
             return truncated
@@ -200,8 +202,8 @@ async def docs_read(params: DocsReadInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def docs_update(params: DocsUpdateInput) -> str:
     """Update content in a Google Docs document.
@@ -235,9 +237,7 @@ async def docs_update(params: DocsUpdateInput) -> str:
     """
     try:
         await docs_service.update_document(
-            document_id=params.document_id,
-            text=params.text,
-            index=params.index
+            document_id=params.document_id, text=params.text, index=params.index
         )
 
         return create_success_response(
@@ -245,9 +245,9 @@ async def docs_update(params: DocsUpdateInput) -> str:
             data={
                 "document_id": params.document_id,
                 "text_length": len(params.text),
-                "index": params.index
+                "index": params.index,
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -261,8 +261,8 @@ async def docs_update(params: DocsUpdateInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": True,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def docs_delete(params: DocsDeleteInput) -> str:
     """Delete a Google Docs document.
@@ -299,9 +299,9 @@ async def docs_delete(params: DocsDeleteInput) -> str:
             f"Deleted document with ID: {params.document_id}",
             data={
                 "document_id": params.document_id,
-                "note": "Document moved to trash. Can be restored from Google Drive trash within 30 days."
+                "note": "Document moved to trash. Can be restored from Google Drive trash within 30 days.",
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:

@@ -1,20 +1,20 @@
 """MCP tools for Google Drive operations using FastMCP."""
 
 import json
-from typing import Optional
-from pydantic import BaseModel, Field, field_validator
+
+from pydantic import Field
 
 from ..server_fastmcp import mcp
 from ..services.drive_service import DriveService
+from ..utils.base_models import BaseListInput, BaseMCPInput, FileIdInput
 from ..utils.logger import setup_logger
-from ..utils.base_models import BaseMCPInput, BaseListInput, FileIdInput
 from ..utils.response_formatter import (
+    CHARACTER_LIMIT,
     ResponseFormat,
+    create_success_response,
+    format_error,
     format_file_list,
     format_pagination_metadata,
-    format_error,
-    create_success_response,
-    CHARACTER_LIMIT
 )
 
 logger = setup_logger(__name__)
@@ -25,22 +25,23 @@ drive_service = DriveService()
 # Pydantic Input Models
 # ============================================================================
 
+
 class DriveSearchInput(BaseListInput):
     """Input model for searching files in Google Drive."""
 
-    query: Optional[str] = Field(
+    query: str | None = Field(
         default=None,
         description="Search query for file name (e.g., 'budget report', 'Q1 analysis', '*.pdf')",
-        max_length=500
+        max_length=500,
     )
-    folder_id: Optional[str] = Field(
+    folder_id: str | None = Field(
         default=None,
         description="Limit search to specific folder ID (e.g., '1A2B3C4D5E6F')",
-        pattern=r'^[a-zA-Z0-9_-]+$'
+        pattern=r"^[a-zA-Z0-9_-]+$",
     )
-    file_type: Optional[str] = Field(
+    file_type: str | None = Field(
         default=None,
-        description="Filter by MIME type (e.g., 'application/pdf', 'image/jpeg', 'application/vnd.google-apps.document')"
+        description="Filter by MIME type (e.g., 'application/pdf', 'image/jpeg', 'application/vnd.google-apps.document')",
     )
 
 
@@ -51,15 +52,15 @@ class DriveReadFileInput(BaseMCPInput):
         ...,
         description="Google Drive file ID (e.g., '1A2B3C4D5E6F7G8H9I0J')",
         min_length=1,
-        pattern=r'^[a-zA-Z0-9_-]+$'
+        pattern=r"^[a-zA-Z0-9_-]+$",
     )
-    mime_type: Optional[str] = Field(
+    mime_type: str | None = Field(
         default=None,
-        description="Export MIME type for Google Docs/Sheets/Slides (e.g., 'text/plain', 'application/pdf', 'text/html')"
+        description="Export MIME type for Google Docs/Sheets/Slides (e.g., 'text/plain', 'application/pdf', 'text/html')",
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -67,28 +68,24 @@ class DriveCreateFileInput(BaseMCPInput):
     """Input model for creating a new file."""
 
     name: str = Field(
-        ...,
-        description="File name (e.g., 'report.txt', 'notes.md')",
-        min_length=1,
-        max_length=255
+        ..., description="File name (e.g., 'report.txt', 'notes.md')", min_length=1, max_length=255
     )
     content: str = Field(
         default="",
         description="File content (text)",
-        max_length=1000000  # 1MB limit for text content
+        max_length=1000000,  # 1MB limit for text content
     )
     mime_type: str = Field(
         default="text/plain",
-        description="MIME type (e.g., 'text/plain', 'text/markdown', 'text/html')"
+        description="MIME type (e.g., 'text/plain', 'text/markdown', 'text/html')",
     )
-    folder_id: Optional[str] = Field(
+    folder_id: str | None = Field(
         default=None,
         description="Parent folder ID to create file in (optional)",
-        pattern=r'^[a-zA-Z0-9_-]+$'
+        pattern=r"^[a-zA-Z0-9_-]+$",
     )
     response_format: ResponseFormat = Field(
-        default=ResponseFormat.MARKDOWN,
-        description="Output format for response"
+        default=ResponseFormat.MARKDOWN, description="Output format for response"
     )
 
 
@@ -96,28 +93,22 @@ class DriveUpdateFileInput(BaseMCPInput):
     """Input model for updating an existing file."""
 
     file_id: str = Field(
-        ...,
-        description="Google Drive file ID to update",
-        pattern=r'^[a-zA-Z0-9_-]+$'
+        ..., description="Google Drive file ID to update", pattern=r"^[a-zA-Z0-9_-]+$"
     )
-    content: Optional[str] = Field(
-        default=None,
-        description="New file content (if updating content)",
-        max_length=1000000
+    content: str | None = Field(
+        default=None, description="New file content (if updating content)", max_length=1000000
     )
-    name: Optional[str] = Field(
-        default=None,
-        description="New file name (if renaming)",
-        max_length=255
+    name: str | None = Field(
+        default=None, description="New file name (if renaming)", max_length=255
     )
     response_format: ResponseFormat = Field(
-        default=ResponseFormat.MARKDOWN,
-        description="Output format for response"
+        default=ResponseFormat.MARKDOWN, description="Output format for response"
     )
 
 
 class DriveDeleteFileInput(FileIdInput):
     """Input model for deleting a file."""
+
     pass
 
 
@@ -127,21 +118,20 @@ class DriveUploadFileInput(BaseMCPInput):
     local_path: str = Field(
         ...,
         description="Local file path to upload (e.g., '/path/to/document.pdf', './report.xlsx')",
-        min_length=1
+        min_length=1,
     )
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None,
         description="Name for uploaded file (optional, defaults to filename from path)",
-        max_length=255
+        max_length=255,
     )
-    folder_id: Optional[str] = Field(
+    folder_id: str | None = Field(
         default=None,
         description="Parent folder ID to upload to (optional)",
-        pattern=r'^[a-zA-Z0-9_-]+$'
+        pattern=r"^[a-zA-Z0-9_-]+$",
     )
     response_format: ResponseFormat = Field(
-        default=ResponseFormat.MARKDOWN,
-        description="Output format for response"
+        default=ResponseFormat.MARKDOWN, description="Output format for response"
     )
 
 
@@ -149,23 +139,22 @@ class DriveDownloadFileInput(BaseMCPInput):
     """Input model for downloading a file."""
 
     file_id: str = Field(
-        ...,
-        description="Google Drive file ID to download",
-        pattern=r'^[a-zA-Z0-9_-]+$'
+        ..., description="Google Drive file ID to download", pattern=r"^[a-zA-Z0-9_-]+$"
     )
     local_path: str = Field(
         ...,
         description="Local path to save downloaded file (e.g., '/path/to/save/file.pdf')",
-        min_length=1
+        min_length=1,
     )
-    mime_type: Optional[str] = Field(
+    mime_type: str | None = Field(
         default=None,
-        description="Export MIME type for Google Docs files (e.g., 'application/pdf', 'text/plain')"
+        description="Export MIME type for Google Docs files (e.g., 'application/pdf', 'text/plain')",
     )
 
 
 class DriveListSharedDrivesInput(BaseListInput):
     """Input model for listing shared drives."""
+
     pass
 
 
@@ -173,14 +162,15 @@ class DriveListSharedDrivesInput(BaseListInput):
 # Tool Implementations
 # ============================================================================
 
+
 @mcp.tool(
     name="drive_search_files",
     annotations={
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def drive_search_files(params: DriveSearchInput) -> str:
     """Search for files and folders in Google Drive with flexible filtering.
@@ -219,7 +209,7 @@ async def drive_search_files(params: DriveSearchInput) -> str:
             query=params.query,
             folder_id=params.folder_id,
             file_type=params.file_type,
-            max_results=params.limit
+            max_results=params.limit,
         )
 
         if not result:
@@ -227,7 +217,7 @@ async def drive_search_files(params: DriveSearchInput) -> str:
 
         # Apply offset for pagination
         total_count = len(result)
-        paginated_result = result[params.offset:params.offset + params.limit]
+        paginated_result = result[params.offset : params.offset + params.limit]
         has_more = (params.offset + params.limit) < total_count
 
         # Format response
@@ -237,12 +227,9 @@ async def drive_search_files(params: DriveSearchInput) -> str:
                 count=len(paginated_result),
                 offset=params.offset,
                 has_more=has_more,
-                next_offset=params.offset + params.limit if has_more else None
+                next_offset=params.offset + params.limit if has_more else None,
             )
-            response = {
-                "files": paginated_result,
-                "pagination": pagination
-            }
+            response = {"files": paginated_result, "pagination": pagination}
             return json.dumps(response, indent=2)
 
         # Markdown format
@@ -250,7 +237,9 @@ async def drive_search_files(params: DriveSearchInput) -> str:
 
         # Add pagination info
         if total_count > params.limit:
-            response_text += f"\n\n📄 **Pagination**: Showing {len(paginated_result)} of {total_count} results"
+            response_text += (
+                f"\n\n📄 **Pagination**: Showing {len(paginated_result)} of {total_count} results"
+            )
             if has_more:
                 response_text += f" (use offset={params.offset + params.limit} for more)"
 
@@ -267,8 +256,8 @@ async def drive_search_files(params: DriveSearchInput) -> str:
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def drive_read_file(params: DriveReadFileInput) -> str:
     """Read file content from Google Drive.
@@ -297,33 +286,28 @@ async def drive_read_file(params: DriveReadFileInput) -> str:
         - Export Doc as text: file_id='1A2B3C', mime_type='text/plain'
     """
     try:
-        result = await drive_service.read_file(
-            file_id=params.file_id,
-            mime_type=params.mime_type
-        )
+        result = await drive_service.read_file(file_id=params.file_id, mime_type=params.mime_type)
 
-        metadata = result.get('metadata', {})
-        content = result.get('content', '')
+        metadata = result.get("metadata", {})
+        content = result.get("content", "")
 
         if params.response_format == ResponseFormat.JSON:
-            return json.dumps({
-                "metadata": metadata,
-                "content": content,
-                "content_length": len(content)
-            }, indent=2)
+            return json.dumps(
+                {"metadata": metadata, "content": content, "content_length": len(content)}, indent=2
+            )
 
         # Markdown format
         response = f"# File: {metadata.get('name', 'Unknown')}\n\n"
         response += f"- **ID**: `{metadata.get('id', 'N/A')}`\n"
         response += f"- **Type**: {metadata.get('mimeType', 'unknown')}\n"
         response += f"- **Modified**: {metadata.get('modifiedTime', 'N/A')}\n"
-        if metadata.get('webViewLink'):
+        if metadata.get("webViewLink"):
             response += f"- **Link**: {metadata['webViewLink']}\n"
         response += f"\n## Content\n\n{content}"
 
         # Check character limit
         if len(response) > CHARACTER_LIMIT:
-            truncated = response[:CHARACTER_LIMIT - 200]
+            truncated = response[: CHARACTER_LIMIT - 200]
             truncated += "\n\n⚠️ **Content Truncated**: File content exceeds character limit. Consider downloading the file instead."
             return truncated
 
@@ -340,8 +324,8 @@ async def drive_read_file(params: DriveReadFileInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def drive_create_file(params: DriveCreateFileInput) -> str:
     """Create a new file in Google Drive.
@@ -360,17 +344,17 @@ async def drive_create_file(params: DriveCreateFileInput) -> str:
             name=params.name,
             content=params.content,
             mime_type=params.mime_type,
-            folder_id=params.folder_id
+            folder_id=params.folder_id,
         )
 
         return create_success_response(
             f"Created file '{result.get('name')}'",
             data={
-                "file_id": result.get('id'),
-                "web_link": result.get('webViewLink', 'N/A'),
-                "mime_type": result.get('mimeType')
+                "file_id": result.get("id"),
+                "web_link": result.get("webViewLink", "N/A"),
+                "mime_type": result.get("mimeType"),
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -384,8 +368,8 @@ async def drive_create_file(params: DriveCreateFileInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def drive_update_file(params: DriveUpdateFileInput) -> str:
     """Update an existing file in Google Drive.
@@ -402,23 +386,17 @@ async def drive_update_file(params: DriveUpdateFileInput) -> str:
     try:
         if not params.content and not params.name:
             return format_error(
-                ValueError("Either 'content' or 'name' must be provided"),
-                "validating input"
+                ValueError("Either 'content' or 'name' must be provided"), "validating input"
             )
 
         result = await drive_service.update_file(
-            file_id=params.file_id,
-            content=params.content,
-            name=params.name
+            file_id=params.file_id, content=params.content, name=params.name
         )
 
         return create_success_response(
             f"Updated file '{result.get('name')}'",
-            data={
-                "file_id": result.get('id'),
-                "modified_time": result.get('modifiedTime')
-            },
-            response_format=params.response_format
+            data={"file_id": result.get("id"), "modified_time": result.get("modifiedTime")},
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -432,8 +410,8 @@ async def drive_update_file(params: DriveUpdateFileInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": True,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def drive_delete_file(params: DriveDeleteFileInput) -> str:
     """Delete a file from Google Drive.
@@ -451,7 +429,7 @@ async def drive_delete_file(params: DriveDeleteFileInput) -> str:
         await drive_service.delete_file(params.file_id)
         return create_success_response(
             f"Deleted file with ID: {params.file_id}",
-            data={"note": "File moved to trash, can be restored within 30 days"}
+            data={"note": "File moved to trash, can be restored within 30 days"},
         )
 
     except Exception as e:
@@ -465,8 +443,8 @@ async def drive_delete_file(params: DriveDeleteFileInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def drive_upload_file(params: DriveUploadFileInput) -> str:
     """Upload a local file to Google Drive.
@@ -482,19 +460,17 @@ async def drive_upload_file(params: DriveUploadFileInput) -> str:
     """
     try:
         result = await drive_service.upload_file(
-            local_path=params.local_path,
-            name=params.name,
-            folder_id=params.folder_id
+            local_path=params.local_path, name=params.name, folder_id=params.folder_id
         )
 
         return create_success_response(
             f"Uploaded file '{result.get('name')}'",
             data={
-                "file_id": result.get('id'),
-                "web_link": result.get('webViewLink', 'N/A'),
-                "size": result.get('size', 'unknown')
+                "file_id": result.get("id"),
+                "web_link": result.get("webViewLink", "N/A"),
+                "size": result.get("size", "unknown"),
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -508,8 +484,8 @@ async def drive_upload_file(params: DriveUploadFileInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def drive_download_file(params: DriveDownloadFileInput) -> str:
     """Download a file from Google Drive to local system.
@@ -525,16 +501,12 @@ async def drive_download_file(params: DriveDownloadFileInput) -> str:
     """
     try:
         result = await drive_service.download_file(
-            file_id=params.file_id,
-            local_path=params.local_path,
-            mime_type=params.mime_type
+            file_id=params.file_id, local_path=params.local_path, mime_type=params.mime_type
         )
 
         return create_success_response(
             f"Downloaded file to: {params.local_path}",
-            data={
-                "file_size_bytes": result.get('size', 'unknown')
-            }
+            data={"file_size_bytes": result.get("size", "unknown")},
         )
 
     except Exception as e:
@@ -548,8 +520,8 @@ async def drive_download_file(params: DriveDownloadFileInput) -> str:
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def drive_list_shared_drives(params: DriveListSharedDrivesInput) -> str:
     """List all shared drives (Team Drives) accessible to the user.
@@ -571,7 +543,7 @@ async def drive_list_shared_drives(params: DriveListSharedDrivesInput) -> str:
 
         # Apply pagination
         total_count = len(result)
-        paginated_result = result[params.offset:params.offset + params.limit]
+        paginated_result = result[params.offset : params.offset + params.limit]
         has_more = (params.offset + params.limit) < total_count
 
         if params.response_format == ResponseFormat.JSON:
@@ -580,12 +552,11 @@ async def drive_list_shared_drives(params: DriveListSharedDrivesInput) -> str:
                 count=len(paginated_result),
                 offset=params.offset,
                 has_more=has_more,
-                next_offset=params.offset + params.limit if has_more else None
+                next_offset=params.offset + params.limit if has_more else None,
             )
-            return json.dumps({
-                "shared_drives": paginated_result,
-                "pagination": pagination
-            }, indent=2)
+            return json.dumps(
+                {"shared_drives": paginated_result, "pagination": pagination}, indent=2
+            )
 
         # Markdown format
         response = f"# Shared Drives ({total_count} found)\n\n"

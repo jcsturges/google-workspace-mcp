@@ -2,8 +2,8 @@
 
 import asyncio
 import time
-from typing import Dict, Optional
 from collections import deque
+
 from .logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -12,12 +12,7 @@ logger = setup_logger(__name__)
 class RateLimiter:
     """Rate limiter for API calls with sliding window algorithm."""
 
-    def __init__(
-        self,
-        max_requests: int = 100,
-        time_window: int = 60,
-        burst_limit: int = 10
-    ):
+    def __init__(self, max_requests: int = 100, time_window: int = 60, burst_limit: int = 10):
         """Initialize rate limiter.
 
         Args:
@@ -50,17 +45,15 @@ class RateLimiter:
             # Check if limit exceeded
             if len(self.requests) >= self.max_requests:
                 wait_time = self.requests[0] + self.time_window - now
-                logger.warning(
-                    f"Rate limit reached for {service}. "
-                    f"Waiting {wait_time:.2f}s"
-                )
+                logger.warning(f"Rate limit reached for {service}. Waiting {wait_time:.2f}s")
                 await asyncio.sleep(wait_time)
                 return await self.acquire(service)
 
             # Check burst limit
             if len(self.requests) >= self.burst_limit:
                 recent_requests = [
-                    r for r in self.requests
+                    r
+                    for r in self.requests
                     if r > now - 1.0  # Last second
                 ]
                 if len(recent_requests) >= self.burst_limit:
@@ -70,28 +63,25 @@ class RateLimiter:
             self.requests.append(now)
             return True
 
-    def get_stats(self) -> Dict[str, any]:
+    def get_stats(self) -> dict[str, any]:
         """Get current rate limiter statistics.
 
         Returns:
             Dictionary with statistics
         """
         now = time.time()
-        active_requests = [
-            r for r in self.requests
-            if r > now - self.time_window
-        ]
+        active_requests = [r for r in self.requests if r > now - self.time_window]
 
         return {
             "active_requests": len(active_requests),
             "max_requests": self.max_requests,
             "time_window": self.time_window,
-            "utilization": len(active_requests) / self.max_requests
+            "utilization": len(active_requests) / self.max_requests,
         }
 
 
 # Global rate limiter instances per service
-_rate_limiters: Dict[str, RateLimiter] = {}
+_rate_limiters: dict[str, RateLimiter] = {}
 
 
 def get_rate_limiter(service: str, **kwargs) -> RateLimiter:

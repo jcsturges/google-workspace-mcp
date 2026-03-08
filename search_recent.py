@@ -1,25 +1,28 @@
 #!/usr/bin/env python3
 """Search recent files in Google Drive"""
+
 import sys
-from google_workspace_mcp.drive_client import DriveClient
 from datetime import datetime
+
+from google_workspace_mcp.drive_client import DriveClient
+
 
 def format_file_info(file):
     """Format file information for display"""
-    name = file.get('name', 'Unknown')
-    file_id = file.get('id', '')
-    mime_type = file.get('mimeType', '').split('.')[-1]
-    modified = file.get('modifiedTime', '')
-    size = file.get('size', 'N/A')
-    link = file.get('webViewLink', '')
+    name = file.get("name", "Unknown")
+    file_id = file.get("id", "")
+    mime_type = file.get("mimeType", "").split(".")[-1]
+    modified = file.get("modifiedTime", "")
+    size = file.get("size", "N/A")
+    link = file.get("webViewLink", "")
 
     # Parse and format date
     if modified:
-        dt = datetime.fromisoformat(modified.replace('Z', '+00:00'))
-        modified = dt.strftime('%Y-%m-%d %H:%M')
+        dt = datetime.fromisoformat(modified.replace("Z", "+00:00"))
+        modified = dt.strftime("%Y-%m-%d %H:%M")
 
     # Format size
-    if size != 'N/A':
+    if size != "N/A":
         size_int = int(size)
         if size_int < 1024:
             size = f"{size_int} B"
@@ -29,13 +32,14 @@ def format_file_info(file):
             size = f"{size_int / (1024 * 1024):.1f} MB"
 
     return {
-        'name': name,
-        'id': file_id,
-        'type': mime_type,
-        'modified': modified,
-        'size': size,
-        'link': link
+        "name": name,
+        "id": file_id,
+        "type": mime_type,
+        "modified": modified,
+        "size": size,
+        "link": link,
     }
+
 
 def main():
     """Main function"""
@@ -71,8 +75,10 @@ def main():
     except Exception as e:
         print(f"❌ 오류 발생: {str(e)}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

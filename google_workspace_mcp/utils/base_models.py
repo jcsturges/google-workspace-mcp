@@ -1,7 +1,8 @@
 """Common Pydantic models for Google Workspace MCP tools."""
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
-from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 from .response_formatter import ResponseFormat
 
 
@@ -10,9 +11,9 @@ class BaseMCPInput(BaseModel):
 
     model_config = ConfigDict(
         str_strip_whitespace=True,  # Auto-strip whitespace from strings
-        validate_assignment=True,    # Validate on assignment
-        extra='forbid',              # Forbid extra fields
-        use_enum_values=True         # Use enum values instead of enum objects
+        validate_assignment=True,  # Validate on assignment
+        extra="forbid",  # Forbid extra fields
+        use_enum_values=True,  # Use enum values instead of enum objects
     )
 
 
@@ -20,19 +21,12 @@ class BaseListInput(BaseMCPInput):
     """Base model for list/search operations with pagination."""
 
     limit: int = Field(
-        default=20,
-        description="Maximum number of results to return (1-1000)",
-        ge=1,
-        le=1000
+        default=20, description="Maximum number of results to return (1-1000)", ge=1, le=1000
     )
-    offset: int = Field(
-        default=0,
-        description="Number of results to skip for pagination",
-        ge=0
-    )
+    offset: int = Field(default=0, description="Number of results to skip for pagination", ge=0)
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -44,10 +38,10 @@ class FileIdInput(BaseMCPInput):
         description="Google Drive/Docs/Sheets/Slides file ID (e.g., '1A2B3C4D5E6F7G8H9I0J')",
         min_length=1,
         max_length=200,
-        pattern=r'^[a-zA-Z0-9_-]+$'
+        pattern=r"^[a-zA-Z0-9_-]+$",
     )
 
-    @field_validator('file_id')
+    @field_validator("file_id")
     @classmethod
     def validate_file_id(cls, v: str) -> str:
         """Validate file ID format."""
@@ -64,10 +58,10 @@ class DocumentIdInput(FileIdInput):
         description="Google Docs document ID (e.g., '1A2B3C4D5E6F7G8H9I0J')",
         min_length=1,
         max_length=200,
-        pattern=r'^[a-zA-Z0-9_-]+$'
+        pattern=r"^[a-zA-Z0-9_-]+$",
     )
 
-    @field_validator('document_id')
+    @field_validator("document_id")
     @classmethod
     def validate_document_id(cls, v: str) -> str:
         """Validate document ID format."""
@@ -84,10 +78,10 @@ class SpreadsheetIdInput(BaseMCPInput):
         description="Google Sheets spreadsheet ID (e.g., '1A2B3C4D5E6F7G8H9I0J')",
         min_length=1,
         max_length=200,
-        pattern=r'^[a-zA-Z0-9_-]+$'
+        pattern=r"^[a-zA-Z0-9_-]+$",
     )
 
-    @field_validator('spreadsheet_id')
+    @field_validator("spreadsheet_id")
     @classmethod
     def validate_spreadsheet_id(cls, v: str) -> str:
         """Validate spreadsheet ID format."""
@@ -104,10 +98,10 @@ class PresentationIdInput(BaseMCPInput):
         description="Google Slides presentation ID (e.g., '1A2B3C4D5E6F7G8H9I0J')",
         min_length=1,
         max_length=200,
-        pattern=r'^[a-zA-Z0-9_-]+$'
+        pattern=r"^[a-zA-Z0-9_-]+$",
     )
 
-    @field_validator('presentation_id')
+    @field_validator("presentation_id")
     @classmethod
     def validate_presentation_id(cls, v: str) -> str:
         """Validate presentation ID format."""
@@ -120,13 +114,10 @@ class MessageIdInput(BaseMCPInput):
     """Base model for Gmail message operations."""
 
     message_id: str = Field(
-        ...,
-        description="Gmail message ID (e.g., '18a1b2c3d4e5f6g7')",
-        min_length=1,
-        max_length=200
+        ..., description="Gmail message ID (e.g., '18a1b2c3d4e5f6g7')", min_length=1, max_length=200
     )
 
-    @field_validator('message_id')
+    @field_validator("message_id")
     @classmethod
     def validate_message_id(cls, v: str) -> str:
         """Validate message ID format."""
@@ -143,10 +134,10 @@ class FormIdInput(BaseMCPInput):
         description="Google Forms form ID (e.g., '1A2B3C4D5E6F7G8H9I0J')",
         min_length=1,
         max_length=200,
-        pattern=r'^[a-zA-Z0-9_-]+$'
+        pattern=r"^[a-zA-Z0-9_-]+$",
     )
 
-    @field_validator('form_id')
+    @field_validator("form_id")
     @classmethod
     def validate_form_id(cls, v: str) -> str:
         """Validate form ID format."""

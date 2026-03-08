@@ -1,18 +1,19 @@
 """MCP tools for Google Slides operations using FastMCP."""
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import Field
 
 from ..server_fastmcp import mcp
 from ..services.slides_service import SlidesService
-from ..utils.logger import setup_logger
 from ..utils.base_models import BaseMCPInput, PresentationIdInput
+from ..utils.logger import setup_logger
 from ..utils.response_formatter import (
+    CHARACTER_LIMIT,
     ResponseFormat,
-    format_error,
     create_success_response,
-    CHARACTER_LIMIT
+    format_error,
 )
 
 logger = setup_logger(__name__)
@@ -23,6 +24,7 @@ slides_service = SlidesService()
 # Pydantic Input Models
 # ============================================================================
 
+
 class SlidesCreateInput(BaseMCPInput):
     """Input model for creating a Google Slides presentation."""
 
@@ -30,11 +32,11 @@ class SlidesCreateInput(BaseMCPInput):
         ...,
         description="Presentation title (e.g., 'Q4 2025 Review', 'Project Kickoff', 'Sales Presentation')",
         min_length=1,
-        max_length=255
+        max_length=255,
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -43,21 +45,19 @@ class SlidesReadInput(PresentationIdInput):
 
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
 class SlidesAddSlideInput(PresentationIdInput):
     """Input model for adding a slide to a presentation."""
 
-    slide_index: Optional[int] = Field(
-        default=None,
-        description="Position to insert slide (0 = beginning, None = end)",
-        ge=0
+    slide_index: int | None = Field(
+        default=None, description="Position to insert slide (0 = beginning, None = end)", ge=0
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -68,18 +68,18 @@ class SlidesDeleteSlideInput(PresentationIdInput):
         ...,
         description="Slide object ID to delete (e.g., 'g123abc456def')",
         min_length=1,
-        max_length=200
+        max_length=200,
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
 class SlidesBatchUpdateInput(PresentationIdInput):
     """Input model for sending raw batchUpdate requests to a presentation."""
 
-    requests: List[Dict[str, Any]] = Field(
+    requests: list[dict[str, Any]] = Field(
         ...,
         description=(
             "List of Google Slides API request objects to execute as a single batch. "
@@ -90,11 +90,11 @@ class SlidesBatchUpdateInput(PresentationIdInput):
             "All shape sizes and positions use EMU units (914400 EMU = 1 inch). "
             "Slide dimensions are 9144000 x 5143500 EMU (standard 16:9)."
         ),
-        min_length=1
+        min_length=1,
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -102,14 +102,15 @@ class SlidesBatchUpdateInput(PresentationIdInput):
 # Tool Implementations
 # ============================================================================
 
+
 @mcp.tool(
     name="slides_create",
     annotations={
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def slides_create(params: SlidesCreateInput) -> str:
     """Create a new Google Slides presentation.
@@ -138,15 +139,15 @@ async def slides_create(params: SlidesCreateInput) -> str:
     try:
         result = await slides_service.create_presentation(title=params.title)
 
-        presentation_id = result.get('presentationId')
+        presentation_id = result.get("presentationId")
         return create_success_response(
             f"Created presentation '{result.get('title')}'",
             data={
                 "presentation_id": presentation_id,
-                "title": result.get('title'),
-                "url": f"https://docs.google.com/presentation/d/{presentation_id}"
+                "title": result.get("title"),
+                "url": f"https://docs.google.com/presentation/d/{presentation_id}",
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -160,8 +161,8 @@ async def slides_create(params: SlidesCreateInput) -> str:
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def slides_read(params: SlidesReadInput) -> str:
     """Read content from a Google Slides presentation.
@@ -204,7 +205,7 @@ async def slides_read(params: SlidesReadInput) -> str:
         response += f"**Slides**: {result.get('slide_count', 0)}\n\n"
 
         # Add content from each slide
-        content = result.get('content', '')
+        content = result.get("content", "")
         if content:
             response += f"## Content\n\n{content}"
         else:
@@ -212,9 +213,11 @@ async def slides_read(params: SlidesReadInput) -> str:
 
         # Check character limit
         if len(response) > CHARACTER_LIMIT:
-            truncated = response[:CHARACTER_LIMIT - 200]
+            truncated = response[: CHARACTER_LIMIT - 200]
             truncated += "\n\n⚠️ **Content Truncated**: Presentation content exceeds character limit (25,000 chars)."
-            truncated += "\n\n**Tip**: Consider reading individual slides or reducing content length."
+            truncated += (
+                "\n\n**Tip**: Consider reading individual slides or reducing content length."
+            )
             return truncated
 
         return response
@@ -230,8 +233,8 @@ async def slides_read(params: SlidesReadInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def slides_add_slide(params: SlidesAddSlideInput) -> str:
     """Add a new slide to a Google Slides presentation.
@@ -265,21 +268,20 @@ async def slides_add_slide(params: SlidesAddSlideInput) -> str:
     """
     try:
         result = await slides_service.add_slide(
-            presentation_id=params.presentation_id,
-            insertion_index=params.slide_index
+            presentation_id=params.presentation_id, insertion_index=params.slide_index
         )
 
-        replies = result.get('replies', [])
-        slide_id = replies[0].get('createSlide', {}).get('objectId') if replies else None
+        replies = result.get("replies", [])
+        slide_id = replies[0].get("createSlide", {}).get("objectId") if replies else None
 
         return create_success_response(
-            f"Added slide to presentation",
+            "Added slide to presentation",
             data={
                 "presentation_id": params.presentation_id,
                 "slide_id": slide_id,
-                "slide_index": params.slide_index if params.slide_index is not None else 'end'
+                "slide_index": params.slide_index if params.slide_index is not None else "end",
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -293,8 +295,8 @@ async def slides_add_slide(params: SlidesAddSlideInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": True,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def slides_delete_slide(params: SlidesDeleteSlideInput) -> str:
     """Delete a slide from a Google Slides presentation.
@@ -333,8 +335,7 @@ async def slides_delete_slide(params: SlidesDeleteSlideInput) -> str:
     """
     try:
         await slides_service.delete_slide(
-            presentation_id=params.presentation_id,
-            slide_id=params.slide_id
+            presentation_id=params.presentation_id, slide_id=params.slide_id
         )
 
         return create_success_response(
@@ -342,9 +343,9 @@ async def slides_delete_slide(params: SlidesDeleteSlideInput) -> str:
             data={
                 "presentation_id": params.presentation_id,
                 "deleted_slide_id": params.slide_id,
-                "note": "Slide permanently deleted. Can be undone via Slides UI (Ctrl+Z) immediately after deletion."
+                "note": "Slide permanently deleted. Can be undone via Slides UI (Ctrl+Z) immediately after deletion.",
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -358,8 +359,8 @@ async def slides_delete_slide(params: SlidesDeleteSlideInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def slides_batch_update(params: SlidesBatchUpdateInput) -> str:
     """Send raw batchUpdate requests to a Google Slides presentation.
@@ -421,20 +422,19 @@ async def slides_batch_update(params: SlidesBatchUpdateInput) -> str:
     """
     try:
         result = await slides_service.update_slide(
-            presentation_id=params.presentation_id,
-            requests=params.requests
+            presentation_id=params.presentation_id, requests=params.requests
         )
 
-        replies = result.get('replies', [])
+        replies = result.get("replies", [])
 
         return create_success_response(
             f"Batch update applied: {len(params.requests)} requests, {len(replies)} replies",
             data={
                 "presentation_id": params.presentation_id,
                 "requests_sent": len(params.requests),
-                "replies": replies
+                "replies": replies,
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:

@@ -2,6 +2,7 @@
 
 import os
 import signal
+
 from google_workspace_mcp.server_fastmcp import mcp
 
 
@@ -14,6 +15,7 @@ def main():
     # stdio server starts. On subsequent runs the saved token is loaded/refreshed
     # silently and mcp.run() proceeds immediately.
     from google_workspace_mcp.auth.oauth_handler import get_oauth_handler
+
     get_oauth_handler().authenticate()
 
     # mcp.run() uses asyncio.run() internally. On Ctrl+C, asyncio tries to

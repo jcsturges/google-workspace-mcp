@@ -25,4 +25,4 @@ mcp = FastMCP("google_workspace_mcp")
 # NOTE: Tool modules are imported in __main__.py to avoid circular imports
 # Each tool module imports this mcp instance and uses @mcp.tool() decorators
 
-__all__ = ['mcp']
+__all__ = ["mcp"]

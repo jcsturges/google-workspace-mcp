@@ -1,8 +1,6 @@
 """OAuth 2.0 authentication handler for Google Workspace APIs."""
 
-import os
 import pickle
-from typing import Optional, List
 from pathlib import Path
 
 from google.auth.transport.requests import Request
@@ -10,39 +8,35 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-from ..utils.logger import setup_logger
 from ..utils.error_handler import AuthenticationError
+from ..utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 # Google Workspace API scopes
 SCOPES = [
     # Full read/write access to drive
-    'https://www.googleapis.com/auth/drive',
+    "https://www.googleapis.com/auth/drive",
     # Limit to just files this project creates
     # 'https://www.googleapis.com/auth/drive.file',
-    'https://www.googleapis.com/auth/documents',
-    'https://www.googleapis.com/auth/spreadsheets',
-    'https://www.googleapis.com/auth/presentations',
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/presentations",
     # Commenting these out this for now...
     # 'https://www.googleapis.com/auth/forms',
     # 'https://www.googleapis.com/auth/gmail.modify'
 ]
 
 # Default config directory
-DEFAULT_CONFIG_DIR = Path.home() / '.config' / 'gw-mcp'
-TOKEN_FILE = 'token.pickle'
-CREDENTIALS_FILE = 'credentials.json'
+DEFAULT_CONFIG_DIR = Path.home() / ".config" / "gw-mcp"
+TOKEN_FILE = "token.pickle"
+CREDENTIALS_FILE = "credentials.json"
 
 
 class OAuthHandler:
     """Handles OAuth 2.0 authentication for Google Workspace APIs."""
 
-    def __init__(
-        self,
-        config_dir: Optional[Path] = None,
-        scopes: Optional[List[str]] = None
-    ):
+    def __init__(self, config_dir: Path | None = None, scopes: list[str] | None = None):
         """Initialize OAuth handler.
 
         Args:
@@ -53,7 +47,7 @@ class OAuthHandler:
         self.config_dir.mkdir(parents=True, exist_ok=True)
 
         self.scopes = scopes or SCOPES
-        self.credentials: Optional[Credentials] = None
+        self.credentials: Credentials | None = None
 
         logger.info(f"OAuth handler initialized with config dir: {self.config_dir}")
 
@@ -67,7 +61,7 @@ class OAuthHandler:
         """Get path to credentials file."""
         return self.config_dir / CREDENTIALS_FILE
 
-    def load_credentials(self) -> Optional[Credentials]:
+    def load_credentials(self) -> Credentials | None:
         """Load credentials from token file.
 
         Returns:
@@ -78,7 +72,7 @@ class OAuthHandler:
             return None
 
         try:
-            with open(self.token_path, 'rb') as token:
+            with open(self.token_path, "rb") as token:
                 creds = pickle.load(token)
                 logger.info("Loaded credentials from token file")
                 return creds
@@ -93,15 +87,12 @@ class OAuthHandler:
             credentials: Credentials to save
         """
         try:
-            with open(self.token_path, 'wb') as token:
+            with open(self.token_path, "wb") as token:
                 pickle.dump(credentials, token)
             logger.info("Saved credentials to token file")
         except Exception as e:
             logger.error(f"Failed to save credentials: {e}")
-            raise AuthenticationError(
-                "Failed to save authentication credentials",
-                original_error=e
-            )
+            raise AuthenticationError("Failed to save authentication credentials", original_error=e)
 
     def refresh_credentials(self, credentials: Credentials) -> Credentials:
         """Refresh expired credentials.
@@ -124,9 +115,8 @@ class OAuthHandler:
         except Exception as e:
             logger.error(f"Failed to refresh credentials: {e}")
             raise AuthenticationError(
-                "Failed to refresh authentication credentials. "
-                "Please re-authenticate.",
-                original_error=e
+                "Failed to refresh authentication credentials. Please re-authenticate.",
+                original_error=e,
             )
 
     def authenticate(self, force_reauth: bool = False) -> Credentials:
@@ -170,8 +160,7 @@ class OAuthHandler:
         try:
             logger.info("Starting OAuth authentication flow")
             flow = InstalledAppFlow.from_client_secrets_file(
-                str(self.credentials_path),
-                self.scopes
+                str(self.credentials_path), self.scopes
             )
             creds = flow.run_local_server(port=0)
             self.save_credentials(creds)
@@ -181,10 +170,7 @@ class OAuthHandler:
 
         except Exception as e:
             logger.error(f"Authentication failed: {e}")
-            raise AuthenticationError(
-                "OAuth authentication failed",
-                original_error=e
-            )
+            raise AuthenticationError("OAuth authentication failed", original_error=e)
 
     def get_service(self, service_name: str, version: str):
         """Get authenticated Google API service.
@@ -209,10 +195,7 @@ class OAuthHandler:
             return service
         except Exception as e:
             logger.error(f"Failed to build service: {e}")
-            raise AuthenticationError(
-                f"Failed to create {service_name} service",
-                original_error=e
-            )
+            raise AuthenticationError(f"Failed to create {service_name} service", original_error=e)
 
     def revoke_credentials(self) -> None:
         """Revoke and delete stored credentials."""
@@ -227,12 +210,11 @@ class OAuthHandler:
 
 
 # Global OAuth handler instance
-_oauth_handler: Optional[OAuthHandler] = None
+_oauth_handler: OAuthHandler | None = None
 
 
 def get_oauth_handler(
-    config_dir: Optional[Path] = None,
-    scopes: Optional[List[str]] = None
+    config_dir: Path | None = None, scopes: list[str] | None = None
 ) -> OAuthHandler:
     """Get global OAuth handler instance.
 

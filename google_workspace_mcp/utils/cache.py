@@ -1,9 +1,10 @@
 """Caching utilities for Google Workspace API responses."""
 
 import asyncio
-import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
+
 from cachetools import TTLCache
+
 from .logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -21,13 +22,9 @@ class AsyncCache:
         """
         self._cache: TTLCache = TTLCache(maxsize=maxsize, ttl=ttl)
         self._lock = asyncio.Lock()
-        self._stats = {
-            "hits": 0,
-            "misses": 0,
-            "evictions": 0
-        }
+        self._stats = {"hits": 0, "misses": 0, "evictions": 0}
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         """Get value from cache.
 
         Args:
@@ -87,7 +84,7 @@ class AsyncCache:
             self._cache.clear()
             logger.info("Cache cleared")
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Get cache statistics.
 
         Returns:
@@ -96,15 +93,11 @@ class AsyncCache:
         total = self._stats["hits"] + self._stats["misses"]
         hit_rate = self._stats["hits"] / total if total > 0 else 0.0
 
-        return {
-            **self._stats,
-            "size": len(self._cache),
-            "hit_rate": hit_rate
-        }
+        return {**self._stats, "size": len(self._cache), "hit_rate": hit_rate}
 
 
 # Global cache instances per service
-_caches: Dict[str, AsyncCache] = {}
+_caches: dict[str, AsyncCache] = {}
 
 
 def get_cache(service: str, **kwargs) -> AsyncCache:
@@ -138,12 +131,7 @@ def cache_key(*args, **kwargs) -> str:
 
 
 async def cached_call(
-    service: str,
-    key: str,
-    func,
-    *args,
-    ttl: Optional[int] = None,
-    **kwargs
+    service: str, key: str, func, *args, ttl: int | None = None, **kwargs
 ) -> Any:
     """Execute function with caching.
 

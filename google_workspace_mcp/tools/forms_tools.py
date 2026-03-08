@@ -1,18 +1,19 @@
 """MCP tools for Google Forms operations using FastMCP."""
 
 import json
-from typing import Optional, List, Any, Dict
+from typing import Any
+
 from pydantic import Field, field_validator
 
 from ..server_fastmcp import mcp
 from ..services.forms_service import FormsService
-from ..utils.logger import setup_logger
 from ..utils.base_models import BaseMCPInput, FormIdInput
+from ..utils.logger import setup_logger
 from ..utils.response_formatter import (
+    CHARACTER_LIMIT,
     ResponseFormat,
-    format_error,
     create_success_response,
-    CHARACTER_LIMIT
+    format_error,
 )
 
 logger = setup_logger(__name__)
@@ -23,6 +24,7 @@ forms_service = FormsService()
 # Pydantic Input Models
 # ============================================================================
 
+
 class FormsCreateInput(BaseMCPInput):
     """Input model for creating a Google Form."""
 
@@ -30,16 +32,16 @@ class FormsCreateInput(BaseMCPInput):
         ...,
         description="Form title (e.g., 'Customer Feedback Survey', 'Event Registration', 'Quiz 2025')",
         min_length=1,
-        max_length=255
+        max_length=255,
     )
-    document_title: Optional[str] = Field(
+    document_title: str | None = Field(
         default=None,
         description="Document title (optional, defaults to form title)",
-        max_length=255
+        max_length=255,
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -48,26 +50,26 @@ class FormsReadInput(FormIdInput):
 
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
 class FormsUpdateInput(FormIdInput):
     """Input model for updating a Google Form."""
 
-    requests: List[Dict[str, Any]] = Field(
+    requests: list[dict[str, Any]] = Field(
         ...,
         description="Array of batch update requests following Google Forms API format",
-        min_items=1
+        min_items=1,
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
-    @field_validator('requests')
+    @field_validator("requests")
     @classmethod
-    def validate_requests(cls, v: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def validate_requests(cls, v: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Validate requests array."""
         if not v:
             raise ValueError("Requests array cannot be empty")
@@ -82,7 +84,7 @@ class FormsDeleteInput(FormIdInput):
 
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -91,7 +93,7 @@ class FormsGetResponsesInput(FormIdInput):
 
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -99,14 +101,15 @@ class FormsGetResponsesInput(FormIdInput):
 # Tool Implementations
 # ============================================================================
 
+
 @mcp.tool(
     name="forms_create",
     annotations={
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def forms_create(params: FormsCreateInput) -> str:
     """Create a new Google Form.
@@ -136,20 +139,19 @@ async def forms_create(params: FormsCreateInput) -> str:
     """
     try:
         result = await forms_service.create_form(
-            title=params.title,
-            document_title=params.document_title
+            title=params.title, document_title=params.document_title
         )
 
-        form_id = result.get('formId')
+        form_id = result.get("formId")
         return create_success_response(
             f"Created form '{result['info']['title']}'",
             data={
                 "form_id": form_id,
-                "title": result['info']['title'],
+                "title": result["info"]["title"],
                 "edit_url": f"https://docs.google.com/forms/d/{form_id}/edit",
-                "response_url": f"https://docs.google.com/forms/d/{form_id}/viewform"
+                "response_url": f"https://docs.google.com/forms/d/{form_id}/viewform",
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -163,8 +165,8 @@ async def forms_create(params: FormsCreateInput) -> str:
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def forms_read(params: FormsReadInput) -> str:
     """Read structure and content from a Google Form.
@@ -206,7 +208,7 @@ async def forms_read(params: FormsReadInput) -> str:
         response += f"**Total Items**: {result.get('item_count', 0)}\\n\\n"
 
         # Add items
-        items = result.get('items', [])
+        items = result.get("items", [])
         if items:
             response += "## Form Items\\n\\n"
             for i, item in enumerate(items, 1):
@@ -217,9 +219,11 @@ async def forms_read(params: FormsReadInput) -> str:
 
         # Check character limit
         if len(response) > CHARACTER_LIMIT:
-            truncated = response[:CHARACTER_LIMIT - 200]
+            truncated = response[: CHARACTER_LIMIT - 200]
             truncated += "\\n\\n⚠️ **Content Truncated**: Form content exceeds character limit (25,000 chars)."
-            truncated += "\\n\\n**Tip**: Consider reading specific sections or reducing form complexity."
+            truncated += (
+                "\\n\\n**Tip**: Consider reading specific sections or reducing form complexity."
+            )
             return truncated
 
         return response
@@ -235,8 +239,8 @@ async def forms_read(params: FormsReadInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def forms_update(params: FormsUpdateInput) -> str:
     """Update form structure and questions using batch requests.
@@ -269,19 +273,16 @@ async def forms_update(params: FormsUpdateInput) -> str:
         - See Google Forms API documentation for request formats
     """
     try:
-        await forms_service.update_form(
-            form_id=params.form_id,
-            requests=params.requests
-        )
+        await forms_service.update_form(form_id=params.form_id, requests=params.requests)
 
         return create_success_response(
-            f"Updated form successfully",
+            "Updated form successfully",
             data={
                 "form_id": params.form_id,
                 "requests_processed": len(params.requests),
-                "edit_url": f"https://docs.google.com/forms/d/{params.form_id}/edit"
+                "edit_url": f"https://docs.google.com/forms/d/{params.form_id}/edit",
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -295,8 +296,8 @@ async def forms_update(params: FormsUpdateInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": True,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def forms_delete(params: FormsDeleteInput) -> str:
     """Delete a Google Form.
@@ -335,9 +336,9 @@ async def forms_delete(params: FormsDeleteInput) -> str:
             f"Deleted form with ID: {params.form_id}",
             data={
                 "form_id": params.form_id,
-                "note": "Form moved to trash. Can be restored from Google Drive trash within 30 days."
+                "note": "Form moved to trash. Can be restored from Google Drive trash within 30 days.",
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -351,8 +352,8 @@ async def forms_delete(params: FormsDeleteInput) -> str:
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def forms_get_responses(params: FormsGetResponsesInput) -> str:
     """Get responses submitted to a Google Form.
@@ -391,19 +392,21 @@ async def forms_get_responses(params: FormsGetResponsesInput) -> str:
             return json.dumps(result, indent=2)
 
         # Markdown format
-        response = f"# Form Responses\\n\\n"
+        response = "# Form Responses\\n\\n"
         response += f"**Form ID**: `{result.get('form_id')}`\\n"
         response += f"**Total Responses**: {result.get('response_count', 0)}\\n\\n"
 
-        if result.get('response_count', 0) > 0:
+        if result.get("response_count", 0) > 0:
             response += "## Response Data\\n\\n"
-            response += "_Response data retrieved successfully. Use JSON format for detailed analysis._\\n"
+            response += (
+                "_Response data retrieved successfully. Use JSON format for detailed analysis._\\n"
+            )
         else:
             response += "## Response Data\\n\\n_No responses submitted yet._\\n"
 
         # Check character limit
         if len(response) > CHARACTER_LIMIT:
-            truncated = response[:CHARACTER_LIMIT - 200]
+            truncated = response[: CHARACTER_LIMIT - 200]
             truncated += "\\n\\n⚠️ **Content Truncated**: Response data exceeds character limit (25,000 chars)."
             truncated += "\\n\\n**Tip**: Use JSON format or process responses in batches."
             return truncated

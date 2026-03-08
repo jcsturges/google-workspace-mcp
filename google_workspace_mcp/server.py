@@ -2,15 +2,23 @@
 """Main MCP server implementation for Google Workspace integration."""
 
 import asyncio
-from typing import Any, Dict, List
+from typing import Any
+
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent, ImageContent, EmbeddedResource
+from mcp.types import EmbeddedResource, ImageContent, TextContent, Tool
 
-from .utils.logger import setup_logger
+from .tools import (
+    ALL_TOOLS,
+    handle_docs_tool,
+    handle_drive_tool,
+    handle_forms_tool,
+    handle_gmail_tool,
+    handle_sheets_tool,
+    handle_slides_tool,
+)
 from .utils.error_handler import GoogleWorkspaceError
-from .tools import ALL_TOOLS, handle_drive_tool, handle_docs_tool, handle_sheets_tool, \
-                   handle_slides_tool, handle_forms_tool, handle_gmail_tool
+from .utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -19,7 +27,7 @@ app = Server("google-workspace-mcp")
 
 
 @app.list_tools()
-async def list_tools() -> List[Tool]:
+async def list_tools() -> list[Tool]:
     """List all available MCP tools.
 
     Returns:
@@ -30,7 +38,9 @@ async def list_tools() -> List[Tool]:
 
 
 @app.call_tool()
-async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent | ImageContent | EmbeddedResource]:
+async def call_tool(
+    name: str, arguments: dict[str, Any]
+) -> list[TextContent | ImageContent | EmbeddedResource]:
     """Execute a tool by name.
 
     Args:
@@ -65,20 +75,10 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent | 
 
     except GoogleWorkspaceError as e:
         logger.error(f"Tool execution failed: {e.message}")
-        return [
-            TextContent(
-                type="text",
-                text=f"Error: {e.message}\nDetails: {e.details}"
-            )
-        ]
+        return [TextContent(type="text", text=f"Error: {e.message}\nDetails: {e.details}")]
     except Exception as e:
         logger.exception(f"Unexpected error in tool {name}")
-        return [
-            TextContent(
-                type="text",
-                text=f"Unexpected error: {str(e)}"
-            )
-        ]
+        return [TextContent(type="text", text=f"Unexpected error: {str(e)}")]
 
 
 async def main():
@@ -87,14 +87,10 @@ async def main():
 
     try:
         async with stdio_server() as (read_stream, write_stream):
-            await app.run(
-                read_stream,
-                write_stream,
-                app.create_initialization_options()
-            )
+            await app.run(read_stream, write_stream, app.create_initialization_options())
     except KeyboardInterrupt:
         logger.info("Server shutdown requested")
-    except Exception as e:
+    except Exception:
         logger.exception("Server error")
         raise
     finally:

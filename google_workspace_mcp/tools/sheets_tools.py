@@ -1,18 +1,19 @@
 """MCP tools for Google Sheets operations using FastMCP."""
 
 import json
-from typing import Optional, List, Any
+from typing import Any
+
 from pydantic import Field, field_validator
 
 from ..server_fastmcp import mcp
 from ..services.sheets_service import SheetsService
-from ..utils.logger import setup_logger
 from ..utils.base_models import BaseMCPInput, SpreadsheetIdInput
+from ..utils.logger import setup_logger
 from ..utils.response_formatter import (
+    CHARACTER_LIMIT,
     ResponseFormat,
-    format_error,
     create_success_response,
-    CHARACTER_LIMIT
+    format_error,
 )
 
 logger = setup_logger(__name__)
@@ -23,6 +24,7 @@ sheets_service = SheetsService()
 # Pydantic Input Models
 # ============================================================================
 
+
 class SheetsCreateInput(BaseMCPInput):
     """Input model for creating a Google Sheets spreadsheet."""
 
@@ -30,11 +32,11 @@ class SheetsCreateInput(BaseMCPInput):
         ...,
         description="Spreadsheet title (e.g., 'Sales Data 2025', 'Project Tracker', 'Budget Q4')",
         min_length=1,
-        max_length=255
+        max_length=255,
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
 
@@ -45,21 +47,21 @@ class SheetsReadInput(SpreadsheetIdInput):
         ...,
         description="Range in A1 notation (e.g., 'Sheet1!A1:D10', 'Data!B2:F100', 'Summary!A:Z')",
         min_length=1,
-        max_length=500
+        max_length=500,
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
-    @field_validator('range_name')
+    @field_validator("range_name")
     @classmethod
     def validate_range_name(cls, v: str) -> str:
         """Validate A1 notation format."""
         if not v.strip():
             raise ValueError("Range name cannot be empty")
         # Basic validation - should contain sheet name and range
-        if '!' not in v:
+        if "!" not in v:
             raise ValueError("Range must include sheet name (e.g., 'Sheet1!A1:B10')")
         return v.strip()
 
@@ -71,31 +73,31 @@ class SheetsWriteInput(SpreadsheetIdInput):
         ...,
         description="Range in A1 notation to write to (e.g., 'Sheet1!A1', 'Data!B2:D5')",
         min_length=1,
-        max_length=500
+        max_length=500,
     )
-    values: List[List[Any]] = Field(
+    values: list[list[Any]] = Field(
         ...,
         description="2D array of values to write (e.g., [['Name', 'Age'], ['Alice', 30], ['Bob', 25]])",
-        min_items=1
+        min_items=1,
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
-    @field_validator('range_name')
+    @field_validator("range_name")
     @classmethod
     def validate_range_name(cls, v: str) -> str:
         """Validate A1 notation format."""
         if not v.strip():
             raise ValueError("Range name cannot be empty")
-        if '!' not in v:
+        if "!" not in v:
             raise ValueError("Range must include sheet name (e.g., 'Sheet1!A1')")
         return v.strip()
 
-    @field_validator('values')
+    @field_validator("values")
     @classmethod
-    def validate_values(cls, v: List[List[Any]]) -> List[List[Any]]:
+    def validate_values(cls, v: list[list[Any]]) -> list[list[Any]]:
         """Validate values array."""
         if not v:
             raise ValueError("Values array cannot be empty")
@@ -113,20 +115,20 @@ class SheetsClearInput(SpreadsheetIdInput):
         ...,
         description="Range in A1 notation to clear (e.g., 'Sheet1!A1:D10', 'Data!A:Z')",
         min_length=1,
-        max_length=500
+        max_length=500,
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
-        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable",
     )
 
-    @field_validator('range_name')
+    @field_validator("range_name")
     @classmethod
     def validate_range_name(cls, v: str) -> str:
         """Validate A1 notation format."""
         if not v.strip():
             raise ValueError("Range name cannot be empty")
-        if '!' not in v:
+        if "!" not in v:
             raise ValueError("Range must include sheet name (e.g., 'Sheet1!A1:D10')")
         return v.strip()
 
@@ -135,14 +137,15 @@ class SheetsClearInput(SpreadsheetIdInput):
 # Tool Implementations
 # ============================================================================
 
+
 @mcp.tool(
     name="sheets_create",
     annotations={
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def sheets_create(params: SheetsCreateInput) -> str:
     """Create a new Google Sheets spreadsheet.
@@ -171,15 +174,15 @@ async def sheets_create(params: SheetsCreateInput) -> str:
     try:
         result = await sheets_service.create_spreadsheet(title=params.title)
 
-        spreadsheet_id = result.get('spreadsheetId')
+        spreadsheet_id = result.get("spreadsheetId")
         return create_success_response(
             f"Created spreadsheet '{result['properties']['title']}'",
             data={
                 "spreadsheet_id": spreadsheet_id,
-                "title": result['properties']['title'],
-                "url": f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
+                "title": result["properties"]["title"],
+                "url": f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}",
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -193,8 +196,8 @@ async def sheets_create(params: SheetsCreateInput) -> str:
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def sheets_read(params: SheetsReadInput) -> str:
     """Read data from a Google Sheets range.
@@ -229,15 +232,14 @@ async def sheets_read(params: SheetsReadInput) -> str:
     """
     try:
         result = await sheets_service.read_range(
-            spreadsheet_id=params.spreadsheet_id,
-            range_name=params.range_name
+            spreadsheet_id=params.spreadsheet_id, range_name=params.range_name
         )
 
         if params.response_format == ResponseFormat.JSON:
             return json.dumps(result, indent=2)
 
         # Markdown format
-        values = result.get('values', [])
+        values = result.get("values", [])
         if not values:
             return "No data found in the specified range."
 
@@ -253,8 +255,10 @@ async def sheets_read(params: SheetsReadInput) -> str:
 
         # Check character limit
         if len(response) > CHARACTER_LIMIT:
-            truncated = response[:CHARACTER_LIMIT - 200]
-            truncated += "\n\n⚠️ **Content Truncated**: Range data exceeds character limit (25,000 chars)."
+            truncated = response[: CHARACTER_LIMIT - 200]
+            truncated += (
+                "\n\n⚠️ **Content Truncated**: Range data exceeds character limit (25,000 chars)."
+            )
             truncated += f"\n\n**Tip**: Request smaller ranges or use pagination (read {len(values)} rows in chunks)."
             return truncated
 
@@ -271,8 +275,8 @@ async def sheets_read(params: SheetsReadInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def sheets_write(params: SheetsWriteInput) -> str:
     """Write data to a Google Sheets range.
@@ -309,9 +313,7 @@ async def sheets_write(params: SheetsWriteInput) -> str:
     """
     try:
         result = await sheets_service.update_range(
-            spreadsheet_id=params.spreadsheet_id,
-            range_name=params.range_name,
-            values=params.values
+            spreadsheet_id=params.spreadsheet_id, range_name=params.range_name, values=params.values
         )
 
         return create_success_response(
@@ -319,11 +321,11 @@ async def sheets_write(params: SheetsWriteInput) -> str:
             data={
                 "spreadsheet_id": params.spreadsheet_id,
                 "range": params.range_name,
-                "updated_cells": result.get('updatedCells', 0),
-                "updated_rows": result.get('updatedRows', 0),
-                "updated_columns": result.get('updatedColumns', 0)
+                "updated_cells": result.get("updatedCells", 0),
+                "updated_rows": result.get("updatedRows", 0),
+                "updated_columns": result.get("updatedColumns", 0),
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:
@@ -337,8 +339,8 @@ async def sheets_write(params: SheetsWriteInput) -> str:
         "readOnlyHint": False,
         "destructiveHint": True,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
 async def sheets_clear(params: SheetsClearInput) -> str:
     """Clear data from a Google Sheets range.
@@ -378,19 +380,16 @@ async def sheets_clear(params: SheetsClearInput) -> str:
         # The actual implementation depends on SheetsService having a clear method
 
         # Try to call clear_range if it exists, otherwise use update with empty values
-        if hasattr(sheets_service, 'clear_range'):
+        if hasattr(sheets_service, "clear_range"):
             await sheets_service.clear_range(
-                spreadsheet_id=params.spreadsheet_id,
-                range_name=params.range_name
+                spreadsheet_id=params.spreadsheet_id, range_name=params.range_name
             )
         else:
             # Fallback: clear by updating with empty array
             # This is a placeholder - the service should implement clear_range
             logger.warning("SheetsService.clear_range not found, using empty update as fallback")
             await sheets_service.update_range(
-                spreadsheet_id=params.spreadsheet_id,
-                range_name=params.range_name,
-                values=[[]]
+                spreadsheet_id=params.spreadsheet_id, range_name=params.range_name, values=[[]]
             )
 
         return create_success_response(
@@ -398,9 +397,9 @@ async def sheets_clear(params: SheetsClearInput) -> str:
             data={
                 "spreadsheet_id": params.spreadsheet_id,
                 "cleared_range": params.range_name,
-                "note": "Cell formatting and properties preserved. Values cleared."
+                "note": "Cell formatting and properties preserved. Values cleared.",
             },
-            response_format=params.response_format
+            response_format=params.response_format,
         )
 
     except Exception as e:

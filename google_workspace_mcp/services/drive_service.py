@@ -1,14 +1,15 @@
 """Google Drive service implementation."""
 
 import io
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 
 from ..auth.oauth_handler import get_oauth_handler
+from ..utils.cache import cache_key, cached_call
+from ..utils.error_handler import with_error_handling
 from ..utils.logger import setup_logger
-from ..utils.error_handler import with_error_handling, ResourceNotFoundError
 from ..utils.rate_limiter import rate_limited_call
-from ..utils.cache import cached_call, cache_key
 
 logger = setup_logger(__name__)
 
@@ -25,17 +26,17 @@ class DriveService:
     def service(self):
         """Get or create Drive service instance."""
         if self._service is None:
-            self._service = self.oauth.get_service('drive', 'v3')
+            self._service = self.oauth.get_service("drive", "v3")
         return self._service
 
     @with_error_handling
     async def search_files(
         self,
-        query: Optional[str] = None,
-        folder_id: Optional[str] = None,
-        file_type: Optional[str] = None,
-        max_results: int = 100
-    ) -> List[Dict[str, Any]]:
+        query: str | None = None,
+        folder_id: str | None = None,
+        file_type: str | None = None,
+        max_results: int = 100,
+    ) -> list[dict[str, Any]]:
         """Search for files in Drive.
 
         Args:
@@ -59,13 +60,17 @@ class DriveService:
         q = " and ".join(query_parts) if query_parts else None
 
         async def _search():
-            results = self.service.files().list(
-                q=q,
-                pageSize=min(max_results, 1000),
-                fields="files(id, name, mimeType, modifiedTime, size, parents)"
-            ).execute()
+            results = (
+                self.service.files()
+                .list(
+                    q=q,
+                    pageSize=min(max_results, 1000),
+                    fields="files(id, name, mimeType, modifiedTime, size, parents)",
+                )
+                .execute()
+            )
 
-            files = results.get('files', [])
+            files = results.get("files", [])
             logger.info(f"Found {len(files)} files")
             return files
 
@@ -73,11 +78,7 @@ class DriveService:
         return await rate_limited_call("drive", cached_call, "drive", cache_k, _search)
 
     @with_error_handling
-    async def read_file(
-        self,
-        file_id: str,
-        mime_type: Optional[str] = None
-    ) -> Dict[str, Any]:
+    async def read_file(self, file_id: str, mime_type: str | None = None) -> dict[str, Any]:
         """Read file content from Drive.
 
         Args:
@@ -87,21 +88,22 @@ class DriveService:
         Returns:
             Dictionary with file metadata and content
         """
+
         async def _read():
             # Get file metadata
-            file_meta = self.service.files().get(
-                fileId=file_id,
-                fields="id, name, mimeType, modifiedTime, size"
-            ).execute()
+            file_meta = (
+                self.service.files()
+                .get(fileId=file_id, fields="id, name, mimeType, modifiedTime, size")
+                .execute()
+            )
 
             # Get file content
-            if mime_type or 'google-apps' in file_meta['mimeType']:
+            if mime_type or "google-apps" in file_meta["mimeType"]:
                 # Export Google Workspace file
-                export_mime = mime_type or 'text/plain'
-                content = self.service.files().export(
-                    fileId=file_id,
-                    mimeType=export_mime
-                ).execute()
+                export_mime = mime_type or "text/plain"
+                content = (
+                    self.service.files().export(fileId=file_id, mimeType=export_mime).execute()
+                )
             else:
                 # Download binary file
                 request = self.service.files().get_media(fileId=file_id)
@@ -117,7 +119,9 @@ class DriveService:
             logger.info(f"Read file: {file_meta['name']}")
             return {
                 "metadata": file_meta,
-                "content": content if isinstance(content, str) else content.decode('utf-8', errors='ignore')
+                "content": content
+                if isinstance(content, str)
+                else content.decode("utf-8", errors="ignore"),
             }
 
         cache_k = cache_key("read", file_id, mime_type)
@@ -129,8 +133,8 @@ class DriveService:
         name: str,
         content: str = "",
         mime_type: str = "text/plain",
-        folder_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        folder_id: str | None = None,
+    ) -> dict[str, Any]:
         """Create new file in Drive.
 
         Args:
@@ -142,22 +146,23 @@ class DriveService:
         Returns:
             Created file metadata
         """
+
         async def _create():
-            file_metadata = {'name': name}
+            file_metadata = {"name": name}
             if folder_id:
-                file_metadata['parents'] = [folder_id]
+                file_metadata["parents"] = [folder_id]
 
             media = MediaFileUpload(
-                io.BytesIO(content.encode()),
-                mimetype=mime_type,
-                resumable=True
+                io.BytesIO(content.encode()), mimetype=mime_type, resumable=True
             )
 
-            file = self.service.files().create(
-                body=file_metadata,
-                media_body=media,
-                fields='id, name, mimeType, webViewLink'
-            ).execute()
+            file = (
+                self.service.files()
+                .create(
+                    body=file_metadata, media_body=media, fields="id, name, mimeType, webViewLink"
+                )
+                .execute()
+            )
 
             logger.info(f"Created file: {file['name']} ({file['id']})")
             return file
@@ -166,11 +171,8 @@ class DriveService:
 
     @with_error_handling
     async def update_file(
-        self,
-        file_id: str,
-        content: Optional[str] = None,
-        name: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, file_id: str, content: str | None = None, name: str | None = None
+    ) -> dict[str, Any]:
         """Update existing file.
 
         Args:
@@ -181,21 +183,19 @@ class DriveService:
         Returns:
             Updated file metadata
         """
+
         async def _update():
             file_metadata = {}
             if name:
-                file_metadata['name'] = name
+                file_metadata["name"] = name
 
-            kwargs = {'fileId': file_id, 'fields': 'id, name, modifiedTime'}
+            kwargs = {"fileId": file_id, "fields": "id, name, modifiedTime"}
 
             if file_metadata:
-                kwargs['body'] = file_metadata
+                kwargs["body"] = file_metadata
 
             if content:
-                kwargs['media_body'] = MediaFileUpload(
-                    io.BytesIO(content.encode()),
-                    resumable=True
-                )
+                kwargs["media_body"] = MediaFileUpload(io.BytesIO(content.encode()), resumable=True)
 
             file = self.service.files().update(**kwargs).execute()
             logger.info(f"Updated file: {file_id}")
@@ -213,6 +213,7 @@ class DriveService:
         Returns:
             True if deleted successfully
         """
+
         async def _delete():
             self.service.files().delete(fileId=file_id).execute()
             logger.info(f"Deleted file: {file_id}")
@@ -222,11 +223,8 @@ class DriveService:
 
     @with_error_handling
     async def upload_file(
-        self,
-        local_path: str,
-        name: Optional[str] = None,
-        folder_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, local_path: str, name: str | None = None, folder_id: str | None = None
+    ) -> dict[str, Any]:
         """Upload local file to Drive.
 
         Args:
@@ -237,24 +235,28 @@ class DriveService:
         Returns:
             Uploaded file metadata
         """
-        import os
         import mimetypes
+        import os
 
         async def _upload():
             file_name = name or os.path.basename(local_path)
-            mime_type = mimetypes.guess_type(local_path)[0] or 'application/octet-stream'
+            mime_type = mimetypes.guess_type(local_path)[0] or "application/octet-stream"
 
-            file_metadata = {'name': file_name}
+            file_metadata = {"name": file_name}
             if folder_id:
-                file_metadata['parents'] = [folder_id]
+                file_metadata["parents"] = [folder_id]
 
             media = MediaFileUpload(local_path, mimetype=mime_type, resumable=True)
 
-            file = self.service.files().create(
-                body=file_metadata,
-                media_body=media,
-                fields='id, name, mimeType, size, webViewLink'
-            ).execute()
+            file = (
+                self.service.files()
+                .create(
+                    body=file_metadata,
+                    media_body=media,
+                    fields="id, name, mimeType, size, webViewLink",
+                )
+                .execute()
+            )
 
             logger.info(f"Uploaded file: {file['name']} ({file['id']})")
             return file
@@ -263,11 +265,8 @@ class DriveService:
 
     @with_error_handling
     async def download_file(
-        self,
-        file_id: str,
-        local_path: str,
-        mime_type: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, file_id: str, local_path: str, mime_type: str | None = None
+    ) -> dict[str, Any]:
         """Download file from Drive to local system.
 
         Args:
@@ -278,20 +277,21 @@ class DriveService:
         Returns:
             Dictionary with download info
         """
+
         async def _download():
             # Get file metadata
-            file_meta = self.service.files().get(
-                fileId=file_id,
-                fields="id, name, mimeType, size"
-            ).execute()
+            file_meta = (
+                self.service.files()
+                .get(fileId=file_id, fields="id, name, mimeType, size")
+                .execute()
+            )
 
             # Download content
-            if mime_type or 'google-apps' in file_meta['mimeType']:
-                export_mime = mime_type or 'application/pdf'
-                content = self.service.files().export(
-                    fileId=file_id,
-                    mimeType=export_mime
-                ).execute()
+            if mime_type or "google-apps" in file_meta["mimeType"]:
+                export_mime = mime_type or "application/pdf"
+                content = (
+                    self.service.files().export(fileId=file_id, mimeType=export_mime).execute()
+                )
             else:
                 request = self.service.files().get_media(fileId=file_id)
                 fh = io.BytesIO()
@@ -304,22 +304,22 @@ class DriveService:
                 content = fh.getvalue()
 
             # Write to local file
-            mode = 'w' if isinstance(content, str) else 'wb'
+            mode = "w" if isinstance(content, str) else "wb"
             with open(local_path, mode) as f:
                 f.write(content)
 
             logger.info(f"Downloaded file to: {local_path}")
             return {
                 "file_id": file_id,
-                "name": file_meta['name'],
+                "name": file_meta["name"],
                 "local_path": local_path,
-                "size": len(content)
+                "size": len(content),
             }
 
         return await rate_limited_call("drive", _download)
 
     @with_error_handling
-    async def list_shared_drives(self, max_results: int = 100) -> List[Dict[str, Any]]:
+    async def list_shared_drives(self, max_results: int = 100) -> list[dict[str, Any]]:
         """List shared drives (Team Drives).
 
         Args:
@@ -328,13 +328,15 @@ class DriveService:
         Returns:
             List of shared drive metadata
         """
-        async def _list():
-            results = self.service.drives().list(
-                pageSize=min(max_results, 100),
-                fields="drives(id, name)"
-            ).execute()
 
-            drives = results.get('drives', [])
+        async def _list():
+            results = (
+                self.service.drives()
+                .list(pageSize=min(max_results, 100), fields="drives(id, name)")
+                .execute()
+            )
+
+            drives = results.get("drives", [])
             logger.info(f"Found {len(drives)} shared drives")
             return drives
 

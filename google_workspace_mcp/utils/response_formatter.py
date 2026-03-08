@@ -1,10 +1,9 @@
 """Response formatting utilities for Google Workspace MCP tools."""
 
 import json
-from enum import Enum
-from typing import Any, Dict, List, Optional
 from datetime import datetime
-
+from enum import Enum
+from typing import Any
 
 # Character limit for responses (MCP best practice)
 CHARACTER_LIMIT = 25000
@@ -12,11 +11,12 @@ CHARACTER_LIMIT = 25000
 
 class ResponseFormat(str, Enum):
     """Output format options for tool responses."""
+
     MARKDOWN = "markdown"
     JSON = "json"
 
 
-def format_timestamp(timestamp: Optional[str]) -> str:
+def format_timestamp(timestamp: str | None) -> str:
     """Convert ISO timestamp to human-readable format.
 
     Args:
@@ -29,13 +29,13 @@ def format_timestamp(timestamp: Optional[str]) -> str:
         return "N/A"
 
     try:
-        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
         return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
     except Exception:
         return timestamp
 
 
-def format_file_list(files: List[Dict[str, Any]], response_format: ResponseFormat) -> str:
+def format_file_list(files: list[dict[str, Any]], response_format: ResponseFormat) -> str:
     """Format a list of files for output.
 
     Args:
@@ -54,11 +54,11 @@ def format_file_list(files: List[Dict[str, Any]], response_format: ResponseForma
     # Markdown format
     lines = [f"# Files ({len(files)} found)\n"]
     for file in files:
-        name = file.get('name', 'Unnamed')
-        file_id = file.get('id', 'N/A')
-        mime_type = file.get('mimeType', 'unknown')
-        modified = format_timestamp(file.get('modifiedTime'))
-        web_link = file.get('webViewLink', '')
+        name = file.get("name", "Unnamed")
+        file_id = file.get("id", "N/A")
+        mime_type = file.get("mimeType", "unknown")
+        modified = format_timestamp(file.get("modifiedTime"))
+        web_link = file.get("webViewLink", "")
 
         lines.append(f"## {name}")
         lines.append(f"- **ID**: `{file_id}`")
@@ -72,12 +72,8 @@ def format_file_list(files: List[Dict[str, Any]], response_format: ResponseForma
 
 
 def format_pagination_metadata(
-    total: Optional[int],
-    count: int,
-    offset: int,
-    has_more: bool,
-    next_offset: Optional[int] = None
-) -> Dict[str, Any]:
+    total: int | None, count: int, offset: int, has_more: bool, next_offset: int | None = None
+) -> dict[str, Any]:
     """Create pagination metadata dictionary.
 
     Args:
@@ -90,11 +86,7 @@ def format_pagination_metadata(
     Returns:
         Pagination metadata dictionary
     """
-    metadata = {
-        "count": count,
-        "offset": offset,
-        "has_more": has_more
-    }
+    metadata = {"count": count, "offset": offset, "has_more": has_more}
 
     if total is not None:
         metadata["total"] = total
@@ -106,9 +98,7 @@ def format_pagination_metadata(
 
 
 def truncate_response(
-    response_text: str,
-    items: Optional[List[Any]] = None,
-    item_formatter: Optional[callable] = None
+    response_text: str, items: list[Any] | None = None, item_formatter: callable | None = None
 ) -> str:
     """Truncate response if it exceeds CHARACTER_LIMIT.
 
@@ -146,7 +136,7 @@ def truncate_response(
         return truncated_text + truncation_message
 
     # Simple truncation
-    truncated = response_text[:CHARACTER_LIMIT - 500]
+    truncated = response_text[: CHARACTER_LIMIT - 500]
     truncation_message = (
         f"\n\n⚠️ **Response Truncated**\n"
         f"Response exceeded {CHARACTER_LIMIT} character limit. "
@@ -174,11 +164,15 @@ def format_error(error: Exception, context: str = "") -> str:
     # Add suggestions based on error type
     error_str = str(error).lower()
     if "not found" in error_str or "404" in error_str:
-        error_msg += "\n\n💡 **Suggestion**: Verify the ID and ensure you have access to this resource."
+        error_msg += (
+            "\n\n💡 **Suggestion**: Verify the ID and ensure you have access to this resource."
+        )
     elif "permission" in error_str or "403" in error_str:
         error_msg += "\n\n💡 **Suggestion**: Check that you have the necessary permissions for this operation."
     elif "quota" in error_str or "rate limit" in error_str:
-        error_msg += "\n\n💡 **Suggestion**: You've hit API rate limits. Wait a moment and try again."
+        error_msg += (
+            "\n\n💡 **Suggestion**: You've hit API rate limits. Wait a moment and try again."
+        )
     elif "authentication" in error_str or "401" in error_str:
         error_msg += "\n\n💡 **Suggestion**: Your authentication token may have expired. Re-authenticate using the server."
 
@@ -187,8 +181,8 @@ def format_error(error: Exception, context: str = "") -> str:
 
 def create_success_response(
     message: str,
-    data: Optional[Dict[str, Any]] = None,
-    response_format: ResponseFormat = ResponseFormat.MARKDOWN
+    data: dict[str, Any] | None = None,
+    response_format: ResponseFormat = ResponseFormat.MARKDOWN,
 ) -> str:
     """Create a standardized success response.
 

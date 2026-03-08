@@ -2,10 +2,9 @@
 
 import logging
 import sys
-from typing import Optional
 
 
-def setup_logger(name: str, level: Optional[int] = None) -> logging.Logger:
+def setup_logger(name: str, level: int | None = None) -> logging.Logger:
     """Setup logger with consistent formatting.
 
     Args:
@@ -32,8 +31,7 @@ def setup_logger(name: str, level: Optional[int] = None) -> logging.Logger:
 
     # Formatter
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
     handler.setFormatter(formatter)
 
@@ -42,4 +40,4 @@ def setup_logger(name: str, level: Optional[int] = None) -> logging.Logger:
 
 
 # Default logger for the application
-default_logger = setup_logger('google_workspace_mcp')
+default_logger = setup_logger("google_workspace_mcp")
