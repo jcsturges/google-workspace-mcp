@@ -10,15 +10,12 @@ A Model Context Protocol (MCP) server that integrates Claude Code with Google Wo
 
 ### Setup
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pip install -e .
+poetry install --with dev
 ```
 
 ### Run the server
 ```bash
-python3 -m google_workspace_mcp
+poetry run google-workspace-mcp
 ```
 
 ### Authentication
@@ -28,25 +25,16 @@ python3 -m google_workspace_mcp
 - To reset auth: `rm ~/.config/gw-mcp/token.pickle`
 - Config dir can be overridden with `GW_MCP_CONFIG_DIR` env var
 
-### Testing
+### Testing and formatting
 ```bash
-# Run all tests
-pytest tests/
+make test          # run pytest with coverage (htmlcov/)
+make fmt           # format and auto-fix lint
+make fmt-check     # check formatting/lint without modifying files
 
-# Run a specific test file
-pytest tests/test_drive_service.py -v
-
-# Run a single test
-pytest tests/test_drive_service.py::TestDriveService::test_search_files -v
-
-# Run with coverage
-pytest tests/ --cov=google_workspace_mcp --cov-report=term-missing
-
-# Use the test runner script for named modes
-./run_tests.sh [all|quick|drive|docs|sheets|slides|forms|gmail|integration|tools|coverage]
+# Run a specific test or file directly
+poetry run pytest tests/test_drive_service.py -v
+poetry run pytest tests/test_drive_service.py::TestDriveService::test_search_files -v
 ```
-
-Note: `pytest.ini` points `--cov=src` (legacy path) — pass `--cov=google_workspace_mcp` explicitly for accurate coverage.
 
 ### Environment variables
 ```bash

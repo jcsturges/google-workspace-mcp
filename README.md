@@ -34,6 +34,7 @@ Originally cloned from [crazybass81/google-workspace-mcp](https://github.com/cra
 
 ### Prerequisites
 - Python 3.10 or higher
+- [Poetry](https://python-poetry.org/docs/#installation)
 - Google Cloud Project with the required APIs enabled
 - OAuth 2.0 credentials (Desktop app type) from Google Cloud Console
 
@@ -43,11 +44,15 @@ Originally cloned from [crazybass81/google-workspace-mcp](https://github.com/cra
 git clone git@github.com:jcsturges/google-workspace-mcp.git
 cd google-workspace-mcp
 
-python3 -m venv .venv
-source .venv/bin/activate
+# Install runtime + dev dependencies
+poetry install --with dev
+```
 
-pip install -r requirements.txt
-pip install -e .
+Poetry creates and manages the virtual environment automatically. To keep it inside the project directory (recommended, matches `.gitignore`):
+
+```bash
+poetry config virtualenvs.in-project true  # one-time global setting
+poetry install --with dev
 ```
 
 ### Step 2: Google Cloud Console setup
@@ -90,8 +95,7 @@ pip install -e .
 Run the server once interactively to complete the OAuth flow:
 
 ```bash
-source .venv/bin/activate
-python3 -m google_workspace_mcp
+poetry run python -m google_workspace_mcp
 ```
 
 A browser window will open for Google OAuth consent. After granting access, the token is saved to `~/.config/gw-mcp/token.pickle`. The server will then enter its stdio loop — this looks like a hang, but is normal. Press Ctrl-C to exit. Claude Code will manage the server process from here on.
@@ -111,8 +115,8 @@ Edit `~/.claude/settings.json` and add under `mcpServers`:
 {
   "mcpServers": {
     "google-workspace": {
-      "command": "/absolute/path/to/google-workspace-mcp/.venv/bin/python3",
-      "args": ["-m", "google_workspace_mcp"],
+      "command": "poetry",
+      "args": ["run", "google-workspace-mcp"],
       "cwd": "/absolute/path/to/google-workspace-mcp"
     }
   }
@@ -121,21 +125,21 @@ Edit `~/.claude/settings.json` and add under `mcpServers`:
 
 **Option B — Project-local (already included):**
 
-A `.mcp.json` file is included in this repository root. Update `cwd` and `command` to match your installation path:
+A `.mcp.json` file is included in this repository root. Update `cwd` to match your installation path:
 
 ```json
 {
   "mcpServers": {
     "google-workspace": {
-      "command": "/absolute/path/to/google-workspace-mcp/.venv/bin/python3",
-      "args": ["-m", "google_workspace_mcp"],
+      "command": "poetry",
+      "args": ["run", "google-workspace-mcp"],
       "cwd": "/absolute/path/to/google-workspace-mcp"
     }
   }
 }
 ```
 
-Use the `.venv` Python binary (not the system `python3`) so the installed dependencies are available. Run `which python3` while the venv is active to get the correct path.
+`poetry run google-workspace-mcp` invokes the installed entry point in Poetry's managed environment — no manual venv activation needed.
 
 ## Available Tools
 

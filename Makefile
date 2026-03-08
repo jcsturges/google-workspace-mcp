@@ -1,12 +1,21 @@
-.PHONY: fmt fmt-check test
+.PHONY: install install-dev run fmt fmt-check test
+
+install:
+	poetry install
+
+install-dev:
+	poetry install --with dev
+
+run:
+	poetry run google-workspace-mcp
 
 fmt:
-	ruff format .
-	ruff check --fix .
+	poetry run ruff format .
+	poetry run ruff check --fix .
 
 fmt-check:
-	ruff format --check .
-	ruff check .
+	poetry run ruff format --check .
+	poetry run ruff check .
 
 test:
-	pytest tests/ --cov --cov-branch --cov-report=html
+	poetry run pytest tests/ --cov --cov-branch --cov-report=html

@@ -26,6 +26,9 @@ venv/
 env/
 ENV/
 
+# Poetry
+# poetry.lock is intentionally tracked for reproducible installs
+
 # IDE
 .vscode/
 .idea/
