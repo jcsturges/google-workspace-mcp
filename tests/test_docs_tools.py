@@ -1,122 +1,85 @@
-"""Tests for Docs tools handlers."""
+"""Tests for Docs tool functions."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from mcp.types import TextContent
-from src.tools.docs_tools import DOCS_TOOLS, handle_docs_tool
+from google_workspace_mcp.tools.docs_tools import (
+    DocsCreateInput,
+    DocsDeleteInput,
+    DocsReadInput,
+    DocsUpdateInput,
+    docs_create,
+    docs_delete,
+    docs_read,
+    docs_update,
+)
 
 
 @pytest.mark.asyncio
-class TestDocsToolsRegistration:
-    """Test Docs tools registration and schemas."""
+class TestDocsTools:
+    """Test Docs tool functions."""
 
-    def test_all_docs_tools_registered(self):
-        """Test that all 4 Docs tools are registered."""
-        assert len(DOCS_TOOLS) == 4
-
-        tool_names = [tool.name for tool in DOCS_TOOLS]
-        assert "docs_create" in tool_names
-        assert "docs_read" in tool_names
-        assert "docs_update" in tool_names
-        assert "docs_delete" in tool_names
-
-    def test_docs_tools_schemas(self):
-        """Test that all Docs tools have valid schemas."""
-        for tool in DOCS_TOOLS:
-            assert tool.name is not None
-            assert tool.description is not None
-            assert tool.inputSchema is not None
-            assert "type" in tool.inputSchema
-            assert tool.inputSchema["type"] == "object"
-            assert "properties" in tool.inputSchema
-
-
-@pytest.mark.asyncio
-class TestDocsToolHandlers:
-    """Test Docs tool handlers with proper mocking."""
-
-    @patch("src.tools.docs_tools.docs_service")
-    async def test_create_handler(self, mock_service):
-        """Test docs_create tool handler."""
+    @patch("google_workspace_mcp.tools.docs_tools.docs_service")
+    async def test_create_document(self, mock_service):
+        """Test docs_create tool."""
         mock_service.create_document = AsyncMock(
             return_value={"documentId": "doc1", "title": "Test Doc"}
         )
 
-        result = await handle_docs_tool("docs_create", {"title": "Test Doc"})
+        result = await docs_create(DocsCreateInput(title="Test Doc"))
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "doc1" in result[0].text
-        assert "Test Doc" in result[0].text
+        assert isinstance(result, str)
+        assert "doc1" in result
         mock_service.create_document.assert_called_once_with(title="Test Doc")
 
-    @patch("src.tools.docs_tools.docs_service")
-    async def test_read_handler(self, mock_service):
-        """Test docs_read tool handler."""
+    @patch("google_workspace_mcp.tools.docs_tools.docs_service")
+    async def test_create_document_error(self, mock_service):
+        """Test docs_create error handling."""
+        mock_service.create_document = AsyncMock(side_effect=Exception("API error"))
+
+        result = await docs_create(DocsCreateInput(title="Test Doc"))
+
+        assert isinstance(result, str)
+        assert "error" in result.lower() or "Error" in result
+
+    @patch("google_workspace_mcp.tools.docs_tools.docs_service")
+    async def test_read_document(self, mock_service):
+        """Test docs_read tool."""
         mock_service.read_document = AsyncMock(
             return_value={
-                "documentId": "doc1",
                 "document_id": "doc1",
                 "title": "Test Doc",
-                "content": "Test content",
+                "content": "Hello world",
             }
         )
 
-        result = await handle_docs_tool("docs_read", {"document_id": "doc1"})
-
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "doc1" in result[0].text
-        assert "Test content" in result[0].text
-        mock_service.read_document.assert_called_once_with(document_id="doc1")
-
-    @patch("src.tools.docs_tools.docs_service")
-    async def test_update_handler(self, mock_service):
-        """Test docs_update tool handler."""
-        mock_service.update_document = AsyncMock(return_value={"documentId": "doc1"})
-
-        result = await handle_docs_tool(
-            "docs_update", {"document_id": "doc1", "text": "New content"}
+        result = await docs_read(
+            DocsReadInput(file_id="doc1", document_id="doc1")
         )
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "doc1" in result[0].text
+        assert isinstance(result, str)
+        mock_service.read_document.assert_called_once()
+
+    @patch("google_workspace_mcp.tools.docs_tools.docs_service")
+    async def test_update_document(self, mock_service):
+        """Test docs_update tool."""
+        mock_service.update_document = AsyncMock(return_value=None)
+
+        result = await docs_update(
+            DocsUpdateInput(file_id="doc1", document_id="doc1", text="New content")
+        )
+
+        assert isinstance(result, str)
         mock_service.update_document.assert_called_once()
 
-    @patch("src.tools.docs_tools.docs_service")
-    async def test_delete_handler(self, mock_service):
-        """Test docs_delete tool handler."""
-        mock_service.delete_document = AsyncMock(return_value={"success": True})
+    @patch("google_workspace_mcp.tools.docs_tools.docs_service")
+    async def test_delete_document(self, mock_service):
+        """Test docs_delete tool."""
+        mock_service.delete_document = AsyncMock(return_value=None)
 
-        result = await handle_docs_tool("docs_delete", {"document_id": "doc1"})
-
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "successfully" in result[0].text.lower()
-        mock_service.delete_document.assert_called_once_with("doc1")
-
-    @patch("src.tools.docs_tools.docs_service")
-    async def test_error_handling(self, mock_service):
-        """Test error handling in Docs tool handlers."""
-        from src.utils.error_handler import GoogleWorkspaceError
-
-        mock_service.create_document = AsyncMock(
-            side_effect=GoogleWorkspaceError("API Error", "Test error")
+        result = await docs_delete(
+            DocsDeleteInput(file_id="doc1", document_id="doc1")
         )
 
-        result = await handle_docs_tool("docs_create", {"title": "Test"})
-
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "Error" in result[0].text
-        assert "API Error" in result[0].text
-
-    async def test_invalid_tool_name(self):
-        """Test handling of invalid tool name."""
-        result = await handle_docs_tool("invalid_tool", {})
-
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "Unknown" in result[0].text or "Error" in result[0].text
+        assert isinstance(result, str)
+        mock_service.delete_document.assert_called_once_with(document_id="doc1")

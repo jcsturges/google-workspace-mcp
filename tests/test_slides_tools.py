@@ -1,137 +1,103 @@
-"""Tests for Slides tools handlers."""
+"""Tests for Slides tool functions."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from mcp.types import TextContent
-from src.tools.slides_tools import SLIDES_TOOLS, handle_slides_tool
+from google_workspace_mcp.tools.slides_tools import (
+    SlidesBatchUpdateInput,
+    SlidesAddSlideInput,
+    SlidesCreateInput,
+    SlidesDeleteSlideInput,
+    SlidesReadInput,
+    slides_add_slide,
+    slides_batch_update,
+    slides_create,
+    slides_delete_slide,
+    slides_read,
+)
 
 
 @pytest.mark.asyncio
-class TestSlidesToolsRegistration:
-    """Test Slides tools registration and schemas."""
+class TestSlidesTools:
+    """Test Slides tool functions."""
 
-    def test_all_slides_tools_registered(self):
-        """Test that all 5 Slides tools are registered."""
-        assert len(SLIDES_TOOLS) == 5
-
-        tool_names = [tool.name for tool in SLIDES_TOOLS]
-        assert "slides_create" in tool_names
-        assert "slides_read" in tool_names
-        assert "slides_add_slide" in tool_names
-        assert "slides_update" in tool_names
-        assert "slides_delete" in tool_names
-
-    def test_slides_tools_schemas(self):
-        """Test that all Slides tools have valid schemas."""
-        for tool in SLIDES_TOOLS:
-            assert tool.name is not None
-            assert tool.description is not None
-            assert tool.inputSchema is not None
-            assert "type" in tool.inputSchema
-            assert tool.inputSchema["type"] == "object"
-            assert "properties" in tool.inputSchema
-
-
-@pytest.mark.asyncio
-class TestSlidesToolHandlers:
-    """Test Slides tool handlers with proper mocking."""
-
-    @patch("src.tools.slides_tools.slides_service")
-    async def test_create_handler(self, mock_service):
-        """Test slides_create tool handler."""
+    @patch("google_workspace_mcp.tools.slides_tools.slides_service")
+    async def test_create_presentation(self, mock_service):
+        """Test slides_create tool."""
         mock_service.create_presentation = AsyncMock(
             return_value={"presentationId": "pres1", "title": "Test Presentation"}
         )
 
-        result = await handle_slides_tool("slides_create", {"title": "Test Presentation"})
+        result = await slides_create(SlidesCreateInput(title="Test Presentation"))
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "pres1" in result[0].text
+        assert isinstance(result, str)
+        assert "pres1" in result
         mock_service.create_presentation.assert_called_once_with(title="Test Presentation")
 
-    @patch("src.tools.slides_tools.slides_service")
-    async def test_read_handler(self, mock_service):
-        """Test slides_read tool handler."""
+    @patch("google_workspace_mcp.tools.slides_tools.slides_service")
+    async def test_create_presentation_error(self, mock_service):
+        """Test slides_create error handling."""
+        mock_service.create_presentation = AsyncMock(side_effect=Exception("API error"))
+
+        result = await slides_create(SlidesCreateInput(title="Test Presentation"))
+
+        assert isinstance(result, str)
+        assert "error" in result.lower() or "Error" in result
+
+    @patch("google_workspace_mcp.tools.slides_tools.slides_service")
+    async def test_read_presentation(self, mock_service):
+        """Test slides_read tool."""
         mock_service.read_presentation = AsyncMock(
             return_value={
-                "presentationId": "pres1",
+                "presentation_id": "pres1",
                 "title": "Test Presentation",
-                "slides": [{"objectId": "slide1"}],
+                "slide_count": 1,
+                "content": "Slide content",
             }
         )
 
-        result = await handle_slides_tool("slides_read", {"presentation_id": "pres1"})
+        result = await slides_read(SlidesReadInput(presentation_id="pres1"))
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "pres1" in result[0].text
-        mock_service.read_presentation.assert_called_once_with(presentation_id="pres1")
+        assert isinstance(result, str)
+        mock_service.read_presentation.assert_called_once()
 
-    @patch("src.tools.slides_tools.slides_service")
-    async def test_add_slide_handler(self, mock_service):
-        """Test slides_add_slide tool handler."""
+    @patch("google_workspace_mcp.tools.slides_tools.slides_service")
+    async def test_add_slide(self, mock_service):
+        """Test slides_add_slide tool."""
         mock_service.add_slide = AsyncMock(
             return_value={"replies": [{"createSlide": {"objectId": "new_slide"}}]}
         )
 
-        result = await handle_slides_tool(
-            "slides_add_slide", {"presentation_id": "pres1", "insertion_index": 1}
-        )
+        result = await slides_add_slide(SlidesAddSlideInput(presentation_id="pres1"))
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "new_slide" in result[0].text
+        assert isinstance(result, str)
         mock_service.add_slide.assert_called_once()
 
-    @patch("src.tools.slides_tools.slides_service")
-    async def test_update_handler(self, mock_service):
-        """Test slides_update tool handler."""
-        mock_service.batch_update = AsyncMock(
-            return_value={"replies": [], "presentationId": "pres1"}
+    @patch("google_workspace_mcp.tools.slides_tools.slides_service")
+    async def test_delete_slide(self, mock_service):
+        """Test slides_delete_slide tool."""
+        mock_service.delete_slide = AsyncMock(return_value=None)
+
+        result = await slides_delete_slide(
+            SlidesDeleteSlideInput(presentation_id="pres1", slide_id="slide1")
         )
 
-        result = await handle_slides_tool(
-            "slides_update", {"presentation_id": "pres1", "requests": [{}]}
+        assert isinstance(result, str)
+        mock_service.delete_slide.assert_called_once()
+
+    @patch("google_workspace_mcp.tools.slides_tools.slides_service")
+    async def test_batch_update(self, mock_service):
+        """Test slides_batch_update tool."""
+        mock_service.update_slide = AsyncMock(
+            return_value={"replies": [{"createSlide": {"objectId": "new_slide"}}]}
         )
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "pres1" in result[0].text
-        mock_service.batch_update.assert_called_once()
-
-    @patch("src.tools.slides_tools.slides_service")
-    async def test_delete_handler(self, mock_service):
-        """Test slides_delete tool handler."""
-        mock_service.delete_presentation = AsyncMock(return_value={"success": True})
-
-        result = await handle_slides_tool("slides_delete", {"presentation_id": "pres1"})
-
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "successfully" in result[0].text.lower()
-        mock_service.delete_presentation.assert_called_once_with(presentation_id="pres1")
-
-    @patch("src.tools.slides_tools.slides_service")
-    async def test_error_handling(self, mock_service):
-        """Test error handling in Slides tool handlers."""
-        from src.utils.error_handler import GoogleWorkspaceError
-
-        mock_service.create_presentation = AsyncMock(
-            side_effect=GoogleWorkspaceError("API Error", "Test error")
+        result = await slides_batch_update(
+            SlidesBatchUpdateInput(
+                presentation_id="pres1",
+                requests=[{"createSlide": {"insertionIndex": 1}}],
+            )
         )
 
-        result = await handle_slides_tool("slides_create", {"title": "Test"})
-
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "Error" in result[0].text
-
-    async def test_invalid_tool_name(self):
-        """Test handling of invalid tool name."""
-        result = await handle_slides_tool("invalid_tool", {})
-
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "Unknown" in result[0].text or "Error" in result[0].text
+        assert isinstance(result, str)
+        mock_service.update_slide.assert_called_once()

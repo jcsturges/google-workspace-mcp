@@ -1,4 +1,4 @@
-.PHONY: fmt fmt-check
+.PHONY: fmt fmt-check test
 
 fmt:
 	ruff format .
@@ -7,3 +7,6 @@ fmt:
 fmt-check:
 	ruff format --check .
 	ruff check .
+
+test:
+	pytest tests/ --cov --cov-branch --cov-report=html

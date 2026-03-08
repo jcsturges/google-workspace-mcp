@@ -204,7 +204,7 @@ def mock_gmail_service():
 @pytest.fixture
 def mock_oauth_handler(mock_credentials):
     """Mock OAuth handler."""
-    from src.auth.oauth_handler import OAuthHandler
+    from google_workspace_mcp.auth.oauth_handler import OAuthHandler
 
     handler = Mock(spec=OAuthHandler)
     handler.authenticate.return_value = mock_credentials

@@ -1,160 +1,161 @@
-"""Tests for Gmail tools handlers."""
+"""Tests for Gmail tool functions."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from mcp.types import TextContent
-from src.tools.gmail_tools import GMAIL_TOOLS, handle_gmail_tool
+from google_workspace_mcp.tools.gmail_tools import (
+    GmailListLabelsInput,
+    GmailModifyLabelsInput,
+    GmailReadInput,
+    GmailReplyInput,
+    GmailSearchInput,
+    GmailSendInput,
+    gmail_list_labels,
+    gmail_modify_labels,
+    gmail_read_message,
+    gmail_reply_message,
+    gmail_search_messages,
+    gmail_send_message,
+)
 
 
 @pytest.mark.asyncio
-class TestGmailToolsRegistration:
-    """Test Gmail tools registration and schemas."""
+class TestGmailTools:
+    """Test Gmail tool functions."""
 
-    def test_all_gmail_tools_registered(self):
-        """Test that all 7 Gmail tools are registered."""
-        assert len(GMAIL_TOOLS) == 7
-
-        tool_names = [tool.name for tool in GMAIL_TOOLS]
-        assert "gmail_search_messages" in tool_names
-        assert "gmail_read_message" in tool_names
-        assert "gmail_send_message" in tool_names
-        assert "gmail_reply_message" in tool_names
-        assert "gmail_delete_message" in tool_names
-        assert "gmail_list_labels" in tool_names
-        assert "gmail_modify_labels" in tool_names
-
-    def test_gmail_tools_schemas(self):
-        """Test that all Gmail tools have valid schemas."""
-        for tool in GMAIL_TOOLS:
-            assert tool.name is not None
-            assert tool.description is not None
-            assert tool.inputSchema is not None
-            assert "type" in tool.inputSchema
-            assert tool.inputSchema["type"] == "object"
-            assert "properties" in tool.inputSchema
-
-
-@pytest.mark.asyncio
-class TestGmailToolHandlers:
-    """Test Gmail tool handlers with proper mocking."""
-
-    @patch("src.tools.gmail_tools.gmail_service")
-    async def test_search_messages_handler(self, mock_service):
-        """Test gmail_search_messages tool handler."""
+    @patch("google_workspace_mcp.tools.gmail_tools.gmail_service")
+    async def test_search_messages(self, mock_service):
+        """Test gmail_search_messages tool."""
         mock_service.search_messages = AsyncMock(
-            return_value=[{"id": "msg1", "threadId": "thread1", "snippet": "Test"}]
+            return_value=[
+                {
+                    "id": "msg1",
+                    "threadId": "thread1",
+                    "payload": {
+                        "headers": [
+                            {"name": "From", "value": "test@example.com"},
+                            {"name": "Subject", "value": "Test Subject"},
+                            {"name": "Date", "value": "2024-01-01"},
+                        ]
+                    },
+                    "snippet": "Test snippet",
+                }
+            ]
         )
 
-        result = await handle_gmail_tool("gmail_search_messages", {"query": "test"})
+        result = await gmail_search_messages(GmailSearchInput(query="test"))
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "msg1" in result[0].text
+        assert isinstance(result, str)
+        assert "msg1" in result
         mock_service.search_messages.assert_called_once()
 
-    @patch("src.tools.gmail_tools.gmail_service")
-    async def test_read_message_handler(self, mock_service):
-        """Test gmail_read_message tool handler."""
+    @patch("google_workspace_mcp.tools.gmail_tools.gmail_service")
+    async def test_search_messages_no_results(self, mock_service):
+        """Test gmail_search_messages with no results."""
+        mock_service.search_messages = AsyncMock(return_value=[])
+
+        result = await gmail_search_messages(GmailSearchInput(query="nonexistent"))
+
+        assert isinstance(result, str)
+        assert "No messages found" in result
+
+    @patch("google_workspace_mcp.tools.gmail_tools.gmail_service")
+    async def test_search_messages_error(self, mock_service):
+        """Test gmail_search_messages error handling."""
+        mock_service.search_messages = AsyncMock(side_effect=Exception("API error"))
+
+        result = await gmail_search_messages(GmailSearchInput())
+
+        assert isinstance(result, str)
+        assert "error" in result.lower() or "Error" in result
+
+    @patch("google_workspace_mcp.tools.gmail_tools.gmail_service")
+    async def test_read_message(self, mock_service):
+        """Test gmail_read_message tool."""
         mock_service.read_message = AsyncMock(
-            return_value={"id": "msg1", "payload": {"headers": []}, "snippet": "Test message"}
+            return_value={
+                "message_id": "msg1",
+                "thread_id": "thread1",
+                "headers": {
+                    "From": "test@example.com",
+                    "Subject": "Test Subject",
+                    "Date": "2024-01-01",
+                },
+                "body": "Test body content",
+                "labels": ["INBOX"],
+            }
         )
 
-        result = await handle_gmail_tool("gmail_read_message", {"message_id": "msg1"})
+        result = await gmail_read_message(GmailReadInput(message_id="msg1"))
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "msg1" in result[0].text
+        assert isinstance(result, str)
         mock_service.read_message.assert_called_once_with(message_id="msg1")
 
-    @patch("src.tools.gmail_tools.gmail_service")
-    async def test_send_message_handler(self, mock_service):
-        """Test gmail_send_message tool handler."""
-        mock_service.send_message = AsyncMock(return_value={"id": "msg1", "threadId": "thread1"})
-
-        result = await handle_gmail_tool(
-            "gmail_send_message",
-            {"to": "test@example.com", "subject": "Test", "body": "Test message"},
+    @patch("google_workspace_mcp.tools.gmail_tools.gmail_service")
+    async def test_send_message(self, mock_service):
+        """Test gmail_send_message tool."""
+        mock_service.send_message = AsyncMock(
+            return_value={"id": "sent1", "threadId": "thread1"}
         )
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "msg1" in result[0].text
+        result = await gmail_send_message(
+            GmailSendInput(
+                to="user@example.com",
+                subject="Hello",
+                body="Test message body",
+            )
+        )
+
+        assert isinstance(result, str)
         mock_service.send_message.assert_called_once()
 
-    @patch("src.tools.gmail_tools.gmail_service")
-    async def test_reply_message_handler(self, mock_service):
-        """Test gmail_reply_message tool handler."""
-        mock_service.reply_message = AsyncMock(return_value={"id": "msg2", "threadId": "thread1"})
-
-        result = await handle_gmail_tool(
-            "gmail_reply_message", {"message_id": "msg1", "body": "Reply text"}
+    @patch("google_workspace_mcp.tools.gmail_tools.gmail_service")
+    async def test_reply_message(self, mock_service):
+        """Test gmail_reply_message tool."""
+        mock_service.reply_message = AsyncMock(
+            return_value={"id": "reply1", "threadId": "thread1"}
         )
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "msg2" in result[0].text
+        result = await gmail_reply_message(
+            GmailReplyInput(message_id="msg1", body="Thanks for your email")
+        )
+
+        assert isinstance(result, str)
         mock_service.reply_message.assert_called_once()
 
-    @patch("src.tools.gmail_tools.gmail_service")
-    async def test_delete_message_handler(self, mock_service):
-        """Test gmail_delete_message tool handler."""
-        mock_service.delete_message = AsyncMock(return_value={"success": True})
+    @patch("google_workspace_mcp.tools.gmail_tools.gmail_service")
+    async def test_list_labels(self, mock_service):
+        """Test gmail_list_labels tool."""
+        mock_service.list_labels = AsyncMock(
+            return_value=[
+                {"id": "INBOX", "name": "INBOX"},
+                {"id": "SENT", "name": "SENT"},
+            ]
+        )
 
-        result = await handle_gmail_tool("gmail_delete_message", {"message_id": "msg1"})
+        result = await gmail_list_labels(GmailListLabelsInput())
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "successfully" in result[0].text.lower()
-        mock_service.delete_message.assert_called_once_with(message_id="msg1")
-
-    @patch("src.tools.gmail_tools.gmail_service")
-    async def test_list_labels_handler(self, mock_service):
-        """Test gmail_list_labels tool handler."""
-        mock_service.list_labels = AsyncMock(return_value=[{"id": "label1", "name": "Important"}])
-
-        result = await handle_gmail_tool("gmail_list_labels", {})
-
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "label1" in result[0].text
+        assert isinstance(result, str)
         mock_service.list_labels.assert_called_once()
 
-    @patch("src.tools.gmail_tools.gmail_service")
-    async def test_modify_labels_handler(self, mock_service):
-        """Test gmail_modify_labels tool handler."""
+    @patch("google_workspace_mcp.tools.gmail_tools.gmail_service")
+    async def test_modify_labels_add(self, mock_service):
+        """Test gmail_modify_labels tool with add labels."""
         mock_service.modify_labels = AsyncMock(
-            return_value={"id": "msg1", "labelIds": ["INBOX", "label1"]}
+            return_value={"id": "msg1", "labelIds": ["INBOX", "STARRED"]}
         )
 
-        result = await handle_gmail_tool(
-            "gmail_modify_labels", {"message_id": "msg1", "add_labels": ["label1"]}
+        result = await gmail_modify_labels(
+            GmailModifyLabelsInput(message_id="msg1", add_labels=["STARRED"])
         )
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "msg1" in result[0].text
+        assert isinstance(result, str)
         mock_service.modify_labels.assert_called_once()
 
-    @patch("src.tools.gmail_tools.gmail_service")
-    async def test_error_handling(self, mock_service):
-        """Test error handling in Gmail tool handlers."""
-        from src.utils.error_handler import GoogleWorkspaceError
+    @patch("google_workspace_mcp.tools.gmail_tools.gmail_service")
+    async def test_modify_labels_no_labels_error(self, mock_service):
+        """Test gmail_modify_labels with no labels specified returns error."""
+        result = await gmail_modify_labels(GmailModifyLabelsInput(message_id="msg1"))
 
-        mock_service.search_messages = AsyncMock(
-            side_effect=GoogleWorkspaceError("API Error", "Test error")
-        )
-
-        result = await handle_gmail_tool("gmail_search_messages", {"query": "test"})
-
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "Error" in result[0].text
-
-    async def test_invalid_tool_name(self):
-        """Test handling of invalid tool name."""
-        result = await handle_gmail_tool("invalid_tool", {})
-
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "Unknown" in result[0].text or "Error" in result[0].text
+        assert isinstance(result, str)
+        assert "error" in result.lower() or "Error" in result

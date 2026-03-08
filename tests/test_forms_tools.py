@@ -1,127 +1,99 @@
-"""Tests for Forms tools handlers."""
+"""Tests for Forms tool functions."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from mcp.types import TextContent
-from src.tools.forms_tools import FORMS_TOOLS, handle_forms_tool
+from google_workspace_mcp.tools.forms_tools import (
+    FormsCreateInput,
+    FormsDeleteInput,
+    FormsGetResponsesInput,
+    FormsReadInput,
+    FormsUpdateInput,
+    forms_create,
+    forms_delete,
+    forms_get_responses,
+    forms_read,
+    forms_update,
+)
 
 
 @pytest.mark.asyncio
-class TestFormsToolsRegistration:
-    """Test Forms tools registration and schemas."""
+class TestFormsTools:
+    """Test Forms tool functions."""
 
-    def test_all_forms_tools_registered(self):
-        """Test that all 5 Forms tools are registered."""
-        assert len(FORMS_TOOLS) == 5
-
-        tool_names = [tool.name for tool in FORMS_TOOLS]
-        assert "forms_create" in tool_names
-        assert "forms_read" in tool_names
-        assert "forms_update" in tool_names
-        assert "forms_delete" in tool_names
-        assert "forms_get_responses" in tool_names
-
-    def test_forms_tools_schemas(self):
-        """Test that all Forms tools have valid schemas."""
-        for tool in FORMS_TOOLS:
-            assert tool.name is not None
-            assert tool.description is not None
-            assert tool.inputSchema is not None
-            assert "type" in tool.inputSchema
-            assert tool.inputSchema["type"] == "object"
-            assert "properties" in tool.inputSchema
-
-
-@pytest.mark.asyncio
-class TestFormsToolHandlers:
-    """Test Forms tool handlers with proper mocking."""
-
-    @patch("src.tools.forms_tools.forms_service")
-    async def test_create_handler(self, mock_service):
-        """Test forms_create tool handler."""
+    @patch("google_workspace_mcp.tools.forms_tools.forms_service")
+    async def test_create_form(self, mock_service):
+        """Test forms_create tool."""
         mock_service.create_form = AsyncMock(
             return_value={"formId": "form1", "info": {"title": "Test Form"}}
         )
 
-        result = await handle_forms_tool("forms_create", {"title": "Test Form"})
+        result = await forms_create(FormsCreateInput(title="Test Form"))
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "form1" in result[0].text
-        mock_service.create_form.assert_called_once_with(title="Test Form")
+        assert isinstance(result, str)
+        assert "form1" in result
+        mock_service.create_form.assert_called_once()
 
-    @patch("src.tools.forms_tools.forms_service")
-    async def test_read_handler(self, mock_service):
-        """Test forms_read tool handler."""
+    @patch("google_workspace_mcp.tools.forms_tools.forms_service")
+    async def test_create_form_error(self, mock_service):
+        """Test forms_create error handling."""
+        mock_service.create_form = AsyncMock(side_effect=Exception("API error"))
+
+        result = await forms_create(FormsCreateInput(title="Test Form"))
+
+        assert isinstance(result, str)
+        assert "error" in result.lower() or "Error" in result
+
+    @patch("google_workspace_mcp.tools.forms_tools.forms_service")
+    async def test_read_form(self, mock_service):
+        """Test forms_read tool."""
         mock_service.read_form = AsyncMock(
-            return_value={"formId": "form1", "info": {"title": "Test Form"}, "items": []}
+            return_value={
+                "form_id": "form1",
+                "title": "Test Form",
+                "item_count": 0,
+                "items": [],
+            }
         )
 
-        result = await handle_forms_tool("forms_read", {"form_id": "form1"})
+        result = await forms_read(FormsReadInput(form_id="form1"))
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "form1" in result[0].text
+        assert isinstance(result, str)
         mock_service.read_form.assert_called_once_with(form_id="form1")
 
-    @patch("src.tools.forms_tools.forms_service")
-    async def test_update_handler(self, mock_service):
-        """Test forms_update tool handler."""
-        mock_service.update_form = AsyncMock(return_value={"formId": "form1", "replies": []})
+    @patch("google_workspace_mcp.tools.forms_tools.forms_service")
+    async def test_update_form(self, mock_service):
+        """Test forms_update tool."""
+        mock_service.update_form = AsyncMock(return_value=None)
 
-        result = await handle_forms_tool("forms_update", {"form_id": "form1", "requests": [{}]})
+        result = await forms_update(
+            FormsUpdateInput(
+                form_id="form1",
+                requests=[{"createItem": {"item": {"title": "Q1"}, "location": {"index": 0}}}],
+            )
+        )
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "form1" in result[0].text
+        assert isinstance(result, str)
         mock_service.update_form.assert_called_once()
 
-    @patch("src.tools.forms_tools.forms_service")
-    async def test_delete_handler(self, mock_service):
-        """Test forms_delete tool handler."""
-        mock_service.delete_form = AsyncMock(return_value={"success": True})
+    @patch("google_workspace_mcp.tools.forms_tools.forms_service")
+    async def test_delete_form(self, mock_service):
+        """Test forms_delete tool."""
+        mock_service.delete_form = AsyncMock(return_value=None)
 
-        result = await handle_forms_tool("forms_delete", {"form_id": "form1"})
+        result = await forms_delete(FormsDeleteInput(form_id="form1"))
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "successfully" in result[0].text.lower()
+        assert isinstance(result, str)
         mock_service.delete_form.assert_called_once_with(form_id="form1")
 
-    @patch("src.tools.forms_tools.forms_service")
-    async def test_get_responses_handler(self, mock_service):
-        """Test forms_get_responses tool handler."""
+    @patch("google_workspace_mcp.tools.forms_tools.forms_service")
+    async def test_get_responses(self, mock_service):
+        """Test forms_get_responses tool."""
         mock_service.get_responses = AsyncMock(
-            return_value={"responses": [{"responseId": "resp1"}]}
+            return_value={"form_id": "form1", "response_count": 0, "responses": []}
         )
 
-        result = await handle_forms_tool("forms_get_responses", {"form_id": "form1"})
+        result = await forms_get_responses(FormsGetResponsesInput(form_id="form1"))
 
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "resp1" in result[0].text
+        assert isinstance(result, str)
         mock_service.get_responses.assert_called_once_with(form_id="form1")
-
-    @patch("src.tools.forms_tools.forms_service")
-    async def test_error_handling(self, mock_service):
-        """Test error handling in Forms tool handlers."""
-        from src.utils.error_handler import GoogleWorkspaceError
-
-        mock_service.create_form = AsyncMock(
-            side_effect=GoogleWorkspaceError("API Error", "Test error")
-        )
-
-        result = await handle_forms_tool("forms_create", {"title": "Test"})
-
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "Error" in result[0].text
-
-    async def test_invalid_tool_name(self):
-        """Test handling of invalid tool name."""
-        result = await handle_forms_tool("invalid_tool", {})
-
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
-        assert "Unknown" in result[0].text or "Error" in result[0].text

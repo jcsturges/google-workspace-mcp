@@ -98,7 +98,7 @@ def format_pagination_metadata(
 
 
 def truncate_response(
-    response_text: str, items: list[Any] | None = None, item_formatter: callable | None = None
+    response_text: str, items: list[Any] | None = None, item_formatter: Any | None = None
 ) -> str:
     """Truncate response if it exceeds CHARACTER_LIMIT.
 
