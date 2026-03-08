@@ -71,11 +71,10 @@ class SlidesService:
     ) -> Dict[str, Any]:
         """Add new slide to presentation."""
         async def _add():
-            requests = [{
-                'createSlide': {
-                    'insertionIndex': insertion_index
-                }
-            }]
+            create_slide = {}
+            if insertion_index is not None:
+                create_slide['insertionIndex'] = insertion_index
+            requests = [{'createSlide': create_slide}]
 
             result = self.service.presentations().batchUpdate(
                 presentationId=presentation_id,
@@ -104,6 +103,20 @@ class SlidesService:
             return result
 
         return await rate_limited_call("slides", _update)
+
+    @with_error_handling
+    async def delete_slide(self, presentation_id: str, slide_id: str) -> Dict[str, Any]:
+        """Delete a slide from a presentation by object ID."""
+        async def _delete():
+            requests = [{'deleteObject': {'objectId': slide_id}}]
+            result = self.service.presentations().batchUpdate(
+                presentationId=presentation_id,
+                body={'requests': requests}
+            ).execute()
+            logger.info(f"Deleted slide {slide_id} from presentation: {presentation_id}")
+            return result
+
+        return await rate_limited_call("slides", _delete)
 
     @with_error_handling
     async def delete_presentation(self, presentation_id: str) -> bool:

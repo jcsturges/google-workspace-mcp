@@ -244,15 +244,18 @@ async def slides_add_slide(params: SlidesAddSlideInput) -> str:
     try:
         result = await slides_service.add_slide(
             presentation_id=params.presentation_id,
-            slide_index=params.slide_index
+            insertion_index=params.slide_index
         )
+
+        replies = result.get('replies', [])
+        slide_id = replies[0].get('createSlide', {}).get('objectId') if replies else None
 
         return create_success_response(
             f"Added slide to presentation",
             data={
                 "presentation_id": params.presentation_id,
-                "slide_id": result.get('slide_id'),
-                "slide_index": result.get('slide_index', 'end')
+                "slide_id": slide_id,
+                "slide_index": params.slide_index if params.slide_index is not None else 'end'
             },
             response_format=params.response_format
         )
