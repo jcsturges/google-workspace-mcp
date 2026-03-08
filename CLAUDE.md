@@ -10,8 +10,8 @@ A Model Context Protocol (MCP) server that integrates Claude Code with Google Wo
 
 ### Setup
 ```bash
-python3 -m venv venv
-source venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
 ```
