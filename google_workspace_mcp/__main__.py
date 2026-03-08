@@ -1,6 +1,7 @@
 """Entry point for running the Google Workspace MCP server as a module."""
 
-import asyncio
+import os
+import signal
 from google_workspace_mcp.server_fastmcp import mcp
 
 
@@ -14,6 +15,15 @@ def main():
     # silently and mcp.run() proceeds immediately.
     from google_workspace_mcp.auth.oauth_handler import get_oauth_handler
     get_oauth_handler().authenticate()
+
+    # mcp.run() uses asyncio.run() internally. On Ctrl+C, asyncio tries to
+    # cancel all pending tasks before exiting, but the stdio reader task blocks
+    # at the OS level on stdin and never cancels cleanly — causing a hang.
+    # os._exit() bypasses asyncio cleanup entirely, which is safe here because
+    # there is no in-flight state to flush (token already saved, API calls are
+    # stateless HTTP).
+    signal.signal(signal.SIGINT, lambda *_: os._exit(0))
+    signal.signal(signal.SIGTERM, lambda *_: os._exit(0))
 
     # Run the FastMCP server
     mcp.run()
