@@ -161,10 +161,12 @@ Use the `.venv` Python binary (not the system `python3`) so the installed depend
 - `sheets_update` - Update range
 - `sheets_delete` - Delete spreadsheet
 
-### Google Slides (4 tools)
+### Google Slides (6 tools)
 - `slides_create` - Create presentation
-- `slides_read` - Read presentation
-- `slides_update` - Update slides
+- `slides_read` - Read presentation structure and slide IDs
+- `slides_add_slide` - Add a blank slide at a given position
+- `slides_delete_slide` - Delete a slide by object ID
+- `slides_batch_update` - Send raw Slides API batchUpdate requests (full content/formatting control)
 - `slides_delete` - Delete presentation
 
 ### Google Forms (5 tools)

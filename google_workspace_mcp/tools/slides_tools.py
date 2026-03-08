@@ -1,7 +1,7 @@
 """MCP tools for Google Slides operations using FastMCP."""
 
 import json
-from typing import Optional
+from typing import Any, Dict, List, Optional
 from pydantic import Field
 
 from ..server_fastmcp import mcp
@@ -69,6 +69,28 @@ class SlidesDeleteSlideInput(PresentationIdInput):
         description="Slide object ID to delete (e.g., 'g123abc456def')",
         min_length=1,
         max_length=200
+    )
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN,
+        description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
+    )
+
+
+class SlidesBatchUpdateInput(PresentationIdInput):
+    """Input model for sending raw batchUpdate requests to a presentation."""
+
+    requests: List[Dict[str, Any]] = Field(
+        ...,
+        description=(
+            "List of Google Slides API request objects to execute as a single batch. "
+            "Each dict must match the Slides API batchUpdate request schema. "
+            "Common request types: createShape, insertText, updateTextStyle, "
+            "updateShapeProperties, updatePageProperties, deleteObject, createSlide, "
+            "duplicateObject, updateSlideProperties. "
+            "All shape sizes and positions use EMU units (914400 EMU = 1 inch). "
+            "Slide dimensions are 9144000 x 5143500 EMU (standard 16:9)."
+        ),
+        min_length=1
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN,
@@ -328,3 +350,93 @@ async def slides_delete_slide(params: SlidesDeleteSlideInput) -> str:
     except Exception as e:
         logger.error(f"slides_delete_slide error: {str(e)}")
         return format_error(e, "deleting slide")
+
+
+@mcp.tool(
+    name="slides_batch_update",
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True
+    }
+)
+async def slides_batch_update(params: SlidesBatchUpdateInput) -> str:
+    """Send raw batchUpdate requests to a Google Slides presentation.
+
+    Executes one or more Google Slides API request objects in a single batch,
+    enabling full control over slide content and formatting. This is the
+    low-level tool for any slide modification not covered by other tools:
+    creating and styling shapes/text boxes, setting backgrounds, inserting
+    text, applying fonts and colours, and more.
+
+    Common request types and their purposes:
+    - updatePageProperties: Set slide background colour
+    - createShape: Add a text box or rectangle (shapeType: TEXT_BOX or RECTANGLE)
+    - insertText: Insert text into a shape
+    - updateTextStyle: Set font family, size, bold, italic, colour
+    - updateShapeProperties: Set shape fill colour, outline
+    - deleteObject: Remove any shape or slide by objectId
+    - createSlide: Add a new slide at a given index
+    - updateSlideProperties: Modify slide-level properties
+
+    Size and position units:
+    - All dimensions use EMU (English Metric Units)
+    - 914400 EMU = 1 inch
+    - Standard 16:9 slide: 9144000 x 5143500 EMU
+    - Transforms require: scaleX, scaleY, translateX, translateY, unit="EMU"
+
+    Colour format: {"rgbColor": {"red": 0.0-1.0, "green": 0.0-1.0, "blue": 0.0-1.0}}
+
+    To get existing slide object IDs (required for targeting shapes on slides),
+    use slides_read first.
+
+    Args:
+        params (SlidesBatchUpdateInput): Validated parameters with:
+            - presentation_id: Google Slides presentation ID
+            - requests: List of Slides API request dicts
+            - response_format: Output format (markdown/json)
+
+    Returns:
+        str: Number of requests sent, number of replies received, and
+             the raw replies list (contains objectIds of created shapes).
+
+    Examples:
+        - Set slide background to dark navy:
+            requests=[{"updatePageProperties": {"objectId": "<slide_id>",
+              "pageProperties": {"pageBackgroundFill": {"solidFill":
+              {"color": {"rgbColor": {"red": 0.04, "green": 0.09, "blue": 0.24}}}}},
+              "fields": "pageBackgroundFill"}}]
+        - Add a text box with styled text (requires two requests: createShape + insertText):
+            requests=[
+              {"createShape": {"objectId": "box1", "shapeType": "TEXT_BOX",
+                "elementProperties": {"pageObjectId": "<slide_id>",
+                  "size": {"width": {"magnitude": 4000000, "unit": "EMU"},
+                           "height": {"magnitude": 500000, "unit": "EMU"}},
+                  "transform": {"scaleX": 1, "scaleY": 1,
+                                "translateX": 457200, "translateY": 300000,
+                                "unit": "EMU"}}}},
+              {"insertText": {"objectId": "box1", "text": "Hello", "insertionIndex": 0}}
+            ]
+    """
+    try:
+        result = await slides_service.update_slide(
+            presentation_id=params.presentation_id,
+            requests=params.requests
+        )
+
+        replies = result.get('replies', [])
+
+        return create_success_response(
+            f"Batch update applied: {len(params.requests)} requests, {len(replies)} replies",
+            data={
+                "presentation_id": params.presentation_id,
+                "requests_sent": len(params.requests),
+                "replies": replies
+            },
+            response_format=params.response_format
+        )
+
+    except Exception as e:
+        logger.error(f"slides_batch_update error: {str(e)}")
+        return format_error(e, "applying batch update to presentation")
